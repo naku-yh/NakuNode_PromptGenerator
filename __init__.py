@@ -81,6 +81,9 @@ NODE_DISPLAY_NAME_MAPPINGS.update(STORYBOARD_NODE_DISPLAY_NAME_MAPPINGS)
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
 
+# Print version and capability information
+print("NakuNode Promt Generator V1.0 Dev ------------------A professional promts generator for WAN / Qwen / Flux")
+
 # Print summary of available nodes
 print(f"[NakuNode-Prompter] Loaded {len(NODE_CLASS_MAPPINGS)} total nodes")
 if KONTEXT_AVAILABLE:

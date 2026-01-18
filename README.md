@@ -1,5 +1,7 @@
 # NakuNode-Prompter
 
+**NakuNode Promt Generator V1.0 Dev ------------------A professional promts generator for WAN / Qwen / Flux**
+
 A comprehensive ComfyUI node pack that integrates multiple prompt generation and guidance systems for AI image and video generation.
 
 ## Features
