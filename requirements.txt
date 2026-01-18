@@ -1,0 +1,11 @@
+# Dependencies for NakuNode-Prompter
+# Combined requirements from all integrated projects
+requests
+numpy
+Pillow
+PyJWT
+torch
+comfy
+einops
+
+# For ComfyUI integration
