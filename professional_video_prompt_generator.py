@@ -6,7 +6,7 @@ from PIL import Image
 import io
 import base64
 
-# 尝试导入必要的库，如果失败则在调用时抛出更友好的错误
+# 尝試導入必要的庫，如果失敗則在調用時拋出更友好的錯誤
 try:
     import requests
 except ImportError:
@@ -85,9 +85,9 @@ SILICONFLOW_MODELS = {
 }
 
 
-class ImageVideoPromptOptimizer:
+class ProfessionalVideoPromptGenerator:
     """
-    单图视频提示词生成器 - 增加了专业视频提示词选项库
+    专业视频提示词润色器 - 包含视频选项库和AI优化功能
     """
     
     @classmethod
@@ -97,8 +97,7 @@ class ImageVideoPromptOptimizer:
 
         inputs = {
             "required": {
-                "图片": ("IMAGE", {}),
-                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在草地上玩耍"}),
+                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在夕阳下的海滩上奔跑"}),
                 "AI服务商": (provider_list,),
                 "API_KEY": ("STRING", {"multiline": False, "default": "选择内置服务商时无需填写"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
@@ -116,57 +115,11 @@ class ImageVideoPromptOptimizer:
         return inputs
 
     RETURN_TYPES = ("STRING", "STRING")  # 中文提示词, 英文提示词
-    RETURN_NAMES = ("AI 生成提示词", "初始提示词")
-    FUNCTION = "optimize_prompt"
+    RETURN_NAMES = ("中文提示词", "英文提示词")
+    FUNCTION = "generate_prompt"
     CATEGORY = "NakuNode/提示词生成"
 
-    def tensor_to_base64(self, image_tensor):
-        """将张量转换为base64编码的图片"""
-        if image_tensor is None:
-            return None
-
-        try:
-            import numpy as np
-        except ImportError:
-            print("[NakuNode ImageOptimizer] Warning: numpy is not installed.")
-            return None
-
-        # 转换张量到numpy数组并确保值在正确范围内
-        i = 255. * image_tensor.cpu().numpy()
-        img_array = np.clip(i, 0, 255).astype(np.uint8)
-
-        # 如果是批次图片，选择第一个
-        if len(img_array.shape) == 4:
-            img_array = img_array[0]
-
-        # 如果有通道维度，确保顺序正确
-        if img_array.shape[-1] == 3 or img_array.shape[-1] == 4:  # RGB or RGBA
-            img = Image.fromarray(img_array)
-        elif img_array.shape[0] == 3 or img_array.shape[0] == 4:  # Channel-first format
-            img = Image.fromarray(np.transpose(img_array, (1, 2, 0)))
-        else:
-            img = Image.fromarray(img_array)
-
-        # 调整图片大小以避免API错误
-        MAX_DIMENSION = 1024
-        if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
-            aspect_ratio = img.width / img.height
-            if img.width > img.height:
-                new_width = MAX_DIMENSION
-                new_height = int(MAX_DIMENSION / aspect_ratio)
-            else:
-                new_height = MAX_DIMENSION
-                new_width = int(MAX_DIMENSION * aspect_ratio)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"[NakuNode ImageOptimizer] Image resized to {img.width}x{img.height} to prevent API errors.")
-
-        # 将图片保存到内存中的缓冲区
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return img_str
-
-    def generate_zhipu_token(self, apikey: str):
+    def generate_zhipu_token(self, apikey):
         if not jwt:
             raise ImportError("pyjwt库缺失。请在您的ComfyUI环境中运行 'pip install pyjwt' 来安装。")
 
@@ -188,7 +141,7 @@ class ImageVideoPromptOptimizer:
             headers={"alg": "HS256", "sign_type": "SIGN"},
         )
 
-    def call_llm_api(self, provider, api_key, prompt, image_base64, siliconflow_model_choice="QWENVL"):
+    def call_llm_api(self, provider, api_key, prompt, siliconflow_model_choice="QWENVL"):
         # AI预设关键词模板
         system_prompt = """你是一名熟悉生成通义万相AI视频制作提示词的智能体，基于通义万相AI生视频功能的提示词使用公式生成最佳提示词prompt，提示词的格式以一段完整的自然语言句子为最终输出prompt，需要给到中文和英文两版提示词：
 
@@ -252,27 +205,20 @@ class ImageVideoPromptOptimizer:
 动作/运动：动态过程或静态姿势。
 视觉风格：艺术流派、画质要求。
 镜头指令：视角、景别、运动路径。（若没有镜头运动的话请强调镜头固定不动）
-增强细节：光线、色彩、特效、情绪氛围。
-特别注意：确保镜头与镜头之间的衔接流畅，不能出现例如「手持跟拍轨道推进」这种不合理的运镜方式，因为手持跟拍是有抖动的，轨道推进是平滑的。最终输出一段中文的自然语言，不能换行，不能在段头和段尾增加意义不明的符号，提示词以：中文提示词/... 这样的格式输出。例如：中文提示词/一位身穿红色西装外套的女性..."""
+增强细节：光线、色彩、特效、情绪氛围。"""
 
         if not requests:
             raise ImportError("requests库缺失。请在您的ComfyUI环境中运行 'pip install requests' 来安装。")
 
         headers = {"Content-Type": "application/json"}
 
-        if not api_key or api_key == "必须填入智谱/硅基流动的API":
-            raise ValueError(f"使用「{provider}」服务商时，请在API_KEY字段中填入您的API密钥。")
-
         if provider == "智谱AI":
             token = self.generate_zhipu_token(api_key)
             headers["Authorization"] = token
-            # 构建消息，包含图片
+            # 构建消息
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]}
+                {"role": "user", "content": f"根据以下用户描述，生成视频提示词：{prompt}"}
             ]
             payload = {"model": "glm-4v-plus", "messages": messages, "stream": False}
             api_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
@@ -281,33 +227,12 @@ class ImageVideoPromptOptimizer:
             result = response.json()
             return result['choices'][0]['message']['content']
 
-        elif provider == "OpenRouter":
-            headers["Authorization"] = f"Bearer {api_key}"
-            headers["HTTP-Referer"] = "http://localhost"
-            # 构建消息，包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]}
-            ]
-            payload = {"messages": messages, "model": "qwen/qwen2-vl-7b-instruct:free", "stream": False}
-            api_url = "https://openrouter.ai/api/v1/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
         elif provider == "硅基流动":
             headers["Authorization"] = f"Bearer {api_key}"
-            # 构建消息，包含图片
+            # 构建消息
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]}
+                {"role": "user", "content": f"根据以下用户描述，生成视频提示词：{prompt}"}
             ]
             # 根据用户选择的硅基流动模型选择对应的模型
             model = SILICONFLOW_MODELS.get(siliconflow_model_choice, "Qwen/Qwen-VL-Chat")  # 默认为QwenVL
@@ -320,7 +245,7 @@ class ImageVideoPromptOptimizer:
 
         return prompt
 
-    def optimize_prompt(self, 图片, 用户描述, AI服务商, API_KEY, 随机种子, 硅基流动模型选择="QWENVL", **kwargs):
+    def generate_prompt(self, 用户描述, AI服务商, API_KEY, 随机种子, 硅基流动模型选择="QWENVL", **kwargs):
         # 设置随机种子
         if 随机种子 == -1:
             随机种子 = random.randint(0, 0xffffffffffffffff)
@@ -344,49 +269,43 @@ class ImageVideoPromptOptimizer:
 
         full_description = "，".join(filter(None, parts))
 
-        # 将图片转换为base64
-        image_base64 = self.tensor_to_base64(图片)
-        if not image_base64:
-            raise ValueError("无法处理输入的图片")
-
-        # 构建请求
-        full_prompt = f"用户描述：{full_description}"
+        if not API_KEY or API_KEY == "必须填入智谱/硅基流动的API":
+            raise ValueError(f"使用「{AI服务商}」服务商时，请在API_KEY字段中填入您的API密钥。")
 
         try:
-            print(f"[NakuNode ImageOptimizer] Optimizing prompt with {AI服务商}...")
+            print(f"[NakuNode VideoPromptGen] Optimizing prompt with {AI服务商}...")
             # 如果是硅基流动服务商，传递模型选择
             if AI服务商 == "硅基流动":
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64, 硅基流动模型选择)
+                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_description, 硅基流动模型选择)
             else:
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64)
-            print(f"[NakuNode ImageOptimizer] Optimized response: {optimized_response}")
-
-            # 解析响应，通常应该包含中文和英文版本
-            # 尝试查找中文和英文部分
-            # 首先尝试查找是否有明确标识的部分
+                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_description)
+            print(f"[NakuNode VideoPromptGen] Optimized response: {optimized_response}")
+            
+            # 解析響應，通常應該包含中文和英文版本
+            # 嘗試查找中文和英文部分
+            # 首先嘗試查找是否有明確標識的部分
             zh_part = ""
             en_part = ""
-
-            # 尝试解析返回的内容，提取中文和英文版本
+            
+            # 嘗試解析返回的內容，提取中文和英文版本
             lines = optimized_response.split('\n')
-            in_chinese = False
-            in_english = False
-
+            
             chinese_lines = []
             english_lines = []
-
+            
             for line in lines:
                 line = line.strip()
-
+                
                 # 检查是否包含中文字符（简化检查）
-                if any('\u4e00' <= char <= '\u9fff' for char in line):
-                    if not line.startswith("English:") and not line.startswith("英文:") and "English" not in line and "英文" not in line:
-                        chinese_lines.append(line)
+                has_chinese = any('\u4e00' <= char <= '\u9fff' for char in line)
+                has_english = any(char.isalpha() for char in line)
 
-                # 检查是否可能包含英文
-                if any(char.isalpha() or char.isspace() or char in ',.!?:;\'\"-()[]{}' for char in line) and not any('\u4e00' <= char <= '\u9fff' for char in line):
-                    if line and not line.startswith("中文:") and not line.startswith("Chinese:") and "中文" not in line and "Chinese" not in line:
-                        english_lines.append(line)
+                if has_chinese and not (line.startswith("English:") or line.startswith("英文:") or "English" in line or "英文" in line):
+                    chinese_lines.append(line)
+
+                # 检查是否可能包含英文，但不含中文
+                if has_english and not has_chinese and not (line.startswith("中文:") and line.startswith("Chinese:") and "中文" in line and "Chinese" in line):
+                    english_lines.append(line)
 
             # 合并结果
             zh_part = ' '.join(chinese_lines).strip()
@@ -409,15 +328,15 @@ class ImageVideoPromptOptimizer:
 
             return (zh_part, en_part)
         except Exception as e:
-            print(f"[NakuNode ImageOptimizer] Error during LLM optimization: {e}")
+            print(f"[NakuNode VideoPromptGen] Error during LLM optimization: {e}")
             # 发生错误时返回融合后的描述
             return (f"优化错误: {e}. 原始描述: {full_description}", f"Optimization Error: {e}. Original: {full_description}")
 
 
-# --- 註冊節點到 ComfyUI ---
+# --- 注册节点到 ComfyUI ---
 NODE_CLASS_MAPPINGS = {
-    "ImageVideoPromptOptimizer": ImageVideoPromptOptimizer
+    "ProfessionalVideoPromptGenerator": ProfessionalVideoPromptGenerator
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ImageVideoPromptOptimizer": "NakuNode-单图视频提示词生成器"
+    "ProfessionalVideoPromptGenerator": "NakuNode专业视频提示词润色器"
 }

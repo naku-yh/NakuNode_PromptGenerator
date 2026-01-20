@@ -33,7 +33,7 @@ app.registerExtension({
                         method: 'GET',
                         headers: { 'Content-Type': 'application/json' }
                     });
-                    
+
                     if (response.ok) {
                         const data = await response.json();
                         if (data.text !== null) {
@@ -43,18 +43,80 @@ app.registerExtension({
                 } catch (error) {
                     console.warn("无法获取已编辑的文本:", error);
                 }
-                
+
                 // 如果没有已编辑的文本，尝试从widgets获取原始文本
                 if (!originalText && this.widgets) {
                     for (let i = 0; i < this.widgets.length; i++) {
                         const widget = this.widgets[i];
                         if (widget.name === "text_input") {
+                            // 尝试获取widget的值，如果为空则尝试其他方法
                             originalText = widget.value || "";
+
+                            // 如果widget.value为空，可能是由于输入连接导致的
+                            if (!originalText && typeof widget.computeAsync === 'function') {
+                                // 如果有异步计算函数，尝试调用它
+                                try {
+                                    const computedValue = widget.computeAsync();
+                                    if (computedValue && typeof computedValue.then === 'function') {
+                                        // 如果是Promise，等待结果
+                                        computedValue.then(value => {
+                                            if (value) {
+                                                originalText = value.toString();
+                                                // 更新编辑器中的文本
+                                                if (readOnlyTextArea) {
+                                                    readOnlyTextArea.value = originalText;
+                                                }
+                                            }
+                                        }).catch(err => console.error("Error computing widget value:", err));
+                                    } else if (computedValue) {
+                                        originalText = computedValue.toString();
+                                    }
+                                } catch (err) {
+                                    console.error("Error getting widget value:", err);
+                                }
+                            }
+
                             break;
                         }
                     }
                 }
-                
+
+                // 如果仍然没有文本，尝试从节点的其他属性获取
+                if (!originalText) {
+                    // 检查是否有从后端传来的current_text
+                    if (this.widgets && this.widgets.length > 0) {
+                        for (let i = 0; i < this.widgets.length; i++) {
+                            const widget = this.widgets[i];
+                            // 查找可能包含输入文本的widget
+                            if (widget.type === "customtext" || widget.type === "text" ||
+                                (widget.name && widget.name.includes("input"))) {
+                                if (widget.value) {
+                                    originalText = widget.value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 最重要的修复：检查是否有最近的UI更新数据
+                // ComfyUI通常会将UI数据存储在节点的properties或widgets中
+                if (!originalText && this.properties && this.properties.current_text) {
+                    originalText = this.properties.current_text;
+                }
+
+                // 如果还是没有找到文本，尝试从节点的其他可能来源获取
+                if (!originalText) {
+                    // 检查是否有历史记录或缓存的文本
+                    if (this.outputs && this.outputs.length > 0) {
+                        // 检查输出端口是否有文本
+                        const output = this.outputs[0];
+                        if (output && output.value) {
+                            originalText = output.value;
+                        }
+                    }
+                }
+
                 // 创建编辑器弹窗，传递原始文本
                 this.createEditorPopup(originalText);
             };
