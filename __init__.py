@@ -78,6 +78,15 @@ except ImportError as e:
     IMAGE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS = {}
     IMAGE_PROMPTER_AVAILABLE = False
 
+try:
+    from .nodes.NakuNode_PromptEVO import NODE_CLASS_MAPPINGS as PROMPT_EVO_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as PROMPT_EVO_NODE_DISPLAY_NAME_MAPPINGS
+    PROMPT_EVO_AVAILABLE = True
+except ImportError as e:
+    print(f"[NakuNode-Prompter] Warning: Could not import PromptEVO nodes: {e}")
+    PROMPT_EVO_NODE_CLASS_MAPPINGS = {}
+    PROMPT_EVO_NODE_DISPLAY_NAME_MAPPINGS = {}
+    PROMPT_EVO_AVAILABLE = False
+
 # Combine all node mappings
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(WAN22_NODE_CLASS_MAPPINGS)
@@ -89,6 +98,7 @@ NODE_CLASS_MAPPINGS.update(DUAL_IMAGE_SCRIPT_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(STORYBOARD_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(TEXT_EDITOR_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(IMAGE_PROMPTER_NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(PROMPT_EVO_NODE_CLASS_MAPPINGS)
 
 NODE_DISPLAY_NAME_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS.update(WAN22_NODE_DISPLAY_NAME_MAPPINGS)
@@ -100,13 +110,14 @@ NODE_DISPLAY_NAME_MAPPINGS.update(DUAL_IMAGE_SCRIPT_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(STORYBOARD_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(TEXT_EDITOR_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(IMAGE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(PROMPT_EVO_NODE_DISPLAY_NAME_MAPPINGS)
 
 WEB_DIRECTORY = "web"
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
 
 # Print version and capability information
-print("NakuNode Promt Generator V1.0 Dev ------------------A professional promts generator for WAN / Qwen / Flux")
+print("NakuNode Promt Generator V1.05 Dev ------------------A professional promts generator for WAN / Qwen / Flux")
 
 # Print summary of available nodes
 print(f"[NakuNode-Prompter] Loaded {len(NODE_CLASS_MAPPINGS)} total nodes")
@@ -120,3 +131,5 @@ if TEXT_EDITOR_AVAILABLE:
     print(f"[NakuNode-Prompter] Text Editor nodes available: {list(TEXT_EDITOR_NODE_CLASS_MAPPINGS.keys())}")
 if IMAGE_PROMPTER_AVAILABLE:
     print(f"[NakuNode-Prompter] Image Prompter nodes available: {list(IMAGE_PROMPTER_NODE_CLASS_MAPPINGS.keys())}")
+if PROMPT_EVO_AVAILABLE:
+    print(f"[NakuNode-Prompter] PromptEVO nodes available: {list(PROMPT_EVO_NODE_CLASS_MAPPINGS.keys())}")

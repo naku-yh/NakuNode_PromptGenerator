@@ -6,5 +6,7 @@ Pillow
 PyJWT
 torch
 einops
+openai
+zhipuai
 
 # For ComfyUI integration
