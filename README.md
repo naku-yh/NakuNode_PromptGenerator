@@ -1,6 +1,6 @@
 # NakuNode-Prompter
 
-**NakuNode Promt Generator V1.05 Dev
+**NakuNode Promt Generator V1.08 Dev
 A professional promts generator for WAN / Qwen / Flux**
 
 A comprehensive ComfyUI node pack that integrates multiple prompt generation and guidance systems for AI image and video generation.
@@ -84,5 +84,6 @@ The nodes will appear in ComfyUI under the "NakuNode" category.
 - Select Zhipu as the API provider in the node
 
 ## Version History
+- V1.08 Dev: Updated QwenEdit model prompt with advanced focus relay mechanism and fluid structure
 - V1.05 Dev: Added comprehensive character controls, API integration, and debugging features
 - V1.0 Dev: Initial release with basic prompt generation and guidance systems
