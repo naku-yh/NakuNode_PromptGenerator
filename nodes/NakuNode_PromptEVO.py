@@ -213,11 +213,28 @@ class NakuNodePromptEVO:
         print(f"【NakuNode-Prompt】 User Prompt: {user_prompt[:100]}...")      # 只打印前100个字符
 
         # 根据API提供商和模型选择决定是否调用API
-        if API提供商 == "无":
-            # 不调用API，只返回完整的提示词
-            print("【NakuNode-Prompt】 API提供商为'无'，不调用API")
-            full_prompt = f"{system_prompt}\n\n用户需求：{user_prompt}"
-            return (full_prompt,)
+        if API提供商 == "无" or not API密钥 or API密钥 == "请输入API密钥":
+            # 不调用API，直接返回用户输入的文本和选择的选项，以逗号分隔
+            print("【NakuNode-Prompt】 API提供商为'无'或API密钥为空，直接组合用户输入和选项")
+
+            # 将所有参数组合成一个字符串
+            all_parts = [文字需求] if 文字需求.strip() else []
+
+            # 添加所有非空的参数
+            for param_name, param_value in [("相机视角", 相机视角), ("镜头与光圈", 镜头与光圈),
+                                            ("胶片与风格", 胶片与风格), ("色彩与色调", 色彩与色调),
+                                            ("构图方式", 构图方式), ("国籍", 国籍), ("性别", 性别),
+                                            ("年龄", 年龄), ("体型", 体型), ("服饰", 服饰),
+                                            ("表情", 表情), ("发型", 发型), ("发色", 发色)]:
+                if param_value and param_value not in ["-- 无 --", "随机"]:
+                    selected_value = data_map[param_name].get(param_value, "")
+                    if selected_value:
+                        all_parts.append(selected_value)
+
+            # 用逗号连接所有部分
+            combined_prompt = ", ".join(all_parts)
+            print(f"【NakuNode-Prompt】 组合后的提示词: {combined_prompt}")
+            return (combined_prompt,)
         elif API提供商 == "硅基流动":
             # 硅基流动API调用
             print("【NakuNode-Prompt】 使用硅基流动API")
