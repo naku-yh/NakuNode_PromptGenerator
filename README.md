@@ -1,7 +1,7 @@
 # NakuNode-Prompter
 
-**NakuNode Promt Generator V1.08 Dev
-A professional promts generator for WAN / Qwen / Flux**
+**NakuNode Promt Generator V1.09 Dev
+A professional promts generator for WAN / Qwen / Flux / LTX**
 
 A comprehensive ComfyUI node pack that integrates multiple prompt generation and guidance systems for AI image and video generation.
 
@@ -12,6 +12,7 @@ A comprehensive ComfyUI node pack that integrates multiple prompt generation and
 - **Comprehensive Parameter Controls** - Extensive parameterized prompt generation with portrait, photography, and scene controls
 - **Advanced Guidance** - Normalized Attention Guidance (NAG) and Noise Added Guidance methods
 - **Multi-Modal Support** - Support for image-based prompt generation and optimization
+- **LTX Video Optimization** - Specialized prompt engineering for LTX Video model
 
 ## Included Nodes
 
@@ -25,6 +26,13 @@ A comprehensive ComfyUI node pack that integrates multiple prompt generation and
 ### Video Prompt Generator
 - Professional video prompt generation with multiple categories (art styles, camera angles, lighting, etc.)
 - LLM integration for prompt polishing with service providers
+
+### LTX Video Prompt Generator
+- **NakuNode-LTXPrompter** - Specialized prompt generator for LTX Video model
+  - Optimized for LTX Video's DiT architecture and T5 text encoder
+  - Focuses on temporal continuity and physical interactions
+  - Uses professional cinematography terminology
+  - Generates flowing English paragraphs instead of tag lists
 
 ### Guidance Systems
 - NakuNode NAG Applier (Attention) - Normalized Attention Guidance
@@ -84,6 +92,7 @@ The nodes will appear in ComfyUI under the "NakuNode" category.
 - Select Zhipu as the API provider in the node
 
 ## Version History
+- V1.09 Dev: Added NakuNode-LTXPrompter for LTX Video model with specialized prompt engineering
 - V1.08 Dev: Updated QwenEdit model prompt with advanced focus relay mechanism and fluid structure
 - V1.05 Dev: Added comprehensive character controls, API integration, and debugging features
 - V1.0 Dev: Initial release with basic prompt generation and guidance systems

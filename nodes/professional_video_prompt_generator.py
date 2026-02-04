@@ -81,7 +81,8 @@ PRO_OPTIONS = {
 # SiliconFlow 模型映射
 SILICONFLOW_MODELS = {
     "QWENVL": "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "GLM": "zai-org/GLM-4.6V"
+    "GLM": "zai-org/GLM-4.6V",
+    "KIMI": "Pro/moonshotai/Kimi-K2.5"
 }
 
 
@@ -109,7 +110,7 @@ class ProfessionalVideoPromptGenerator:
             inputs["required"][category] = (options_list, {"default": "无"})
 
         inputs["optional"] = {
-            "硅基流动模型选择": (["QWENVL", "GLM"], {"default": "QWENVL"}),  # 仅在选择硅基流动时使用
+            "硅基流动模型选择": (["QWENVL", "GLM", "KIMI"], {"default": "QWENVL"}),  # 仅在选择硅基流动时使用
         }
 
         return inputs

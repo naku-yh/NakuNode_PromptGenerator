@@ -137,7 +137,7 @@ class NakuNodePromptEVO:
             },
             "optional": {
                 "API密钥": ("STRING", {"multiline": False, "default": "请输入API密钥"}),
-                "硅基流动模型选择": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM"], {"default": "Qwen3"}),  # 仅在选择硅基流动时使用
+                "硅基流动模型选择": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),  # 仅在选择硅基流动时使用
             }
         }
 
@@ -251,7 +251,8 @@ class NakuNodePromptEVO:
                 "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
                 "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
                 "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
-                "GLM": "Pro/zai-org/GLM-4.7"
+                "GLM": "Pro/zai-org/GLM-4.7",
+                "KIMI": "Pro/moonshotai/Kimi-K2.5"
             }
 
             selected_model = model_mapping.get(硅基流动模型选择, "Pro/zai-org/GLM-4.7")

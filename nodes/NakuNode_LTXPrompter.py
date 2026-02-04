@@ -86,20 +86,20 @@ SILICONFLOW_MODELS = {
 }
 
 
-class ImageVideoPromptOptimizer:
+class NakuNodeLTXPrompter:
     """
-    单图视频提示词生成器 - 增加了专业视频提示词选项库
+    LTX视频提示词生成器 - 基于图片和描述生成LTX Video专用提示词
     """
-    
+
     @classmethod
     def INPUT_TYPES(s):
-        # 创建AI服务商列表 - 移除了内置LLM1, LLM2和OpenRouter
+        # 创建AI服务商列表
         provider_list = ["智谱AI", "硅基流动"]
 
         inputs = {
             "required": {
                 "图片": ("IMAGE", {}),
-                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在草地上玩耍"}),
+                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在阳光下玩耍"}),
                 "AI服务商": (provider_list,),
                 "API_KEY": ("STRING", {"multiline": False, "default": "选择内置服务商时无需填写"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
@@ -116,9 +116,9 @@ class ImageVideoPromptOptimizer:
 
         return inputs
 
-    RETURN_TYPES = ("STRING", "STRING")  # 中文提示词, 英文提示词
+    RETURN_TYPES = ("STRING", "STRING")  # AI生成提示词, 初始提示词
     RETURN_NAMES = ("AI 生成提示词", "初始提示词")
-    FUNCTION = "optimize_prompt"
+    FUNCTION = "generate_ltx_prompt"
     CATEGORY = "NakuNode/提示词生成"
 
     def tensor_to_base64(self, image_tensor):
@@ -129,7 +129,7 @@ class ImageVideoPromptOptimizer:
         try:
             import numpy as np
         except ImportError:
-            print("[NakuNode ImageOptimizer] Warning: numpy is not installed.")
+            print("[NakuNode LTXPrompter] Warning: numpy is not installed.")
             return None
 
         # 转换张量到numpy数组并确保值在正确范围内
@@ -159,7 +159,7 @@ class ImageVideoPromptOptimizer:
                 new_height = MAX_DIMENSION
                 new_width = int(MAX_DIMENSION * aspect_ratio)
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"[NakuNode ImageOptimizer] Image resized to {img.width}x{img.height} to prevent API errors.")
+            print(f"[NakuNode LTXPrompter] Image resized to {img.width}x{img.height} to prevent API errors.")
 
         # 将图片保存到内存中的缓冲区
         buffered = io.BytesIO()
@@ -190,71 +190,32 @@ class ImageVideoPromptOptimizer:
         )
 
     def call_llm_api(self, provider, api_key, prompt, image_base64, siliconflow_model_choice="QWENVL"):
-        # AI预设关键词模板
-        system_prompt = """你是一名熟悉生成通义万相AI视频制作提示词的智能体，基于通义万相AI生视频功能的提示词使用公式生成最佳提示词prompt，提示词的格式以一段完整的自然语言句子为最终输出prompt，需要给到中文和英文两版提示词：
+        # LTX Video 专用系统提示词
+        system_prompt = """Role
+你是一位专精于 LTX Video (Lightricks Video Model) 的 AI 视频导演。你深入理解 LTX Video 基于 DiT 架构的特性，知晓它是如何通过 T5 文本编码器处理自然语言的。你的任务是将用户简单的想法，转化为符合 LTX Video 最佳实践的、电影级的详细提示词（Prompt）。
 
-以下几种提示词使用公式：
+Skills
+分析参考图，并用自然语言编写：你摒弃传统的"标签堆砌（Tag salad）"写法，擅长将关键词扩展为流畅、描述性强的英语长句。
+时空连续性构建：你特别注重描述视频中的"变化"和"动作轨迹"，确保生成的视频不是动态 PPT，而是有真实物理交互的短片。
+电影镜头语言：熟练运用 Slow zoom in, Handheld camera shake, Rack focus, Drone shot 等术语来定义视觉风格。
+环境氛围营造：通过描述光线（如 Volumetric lighting）、天气和材质质感来增强真实感。
+Workflow
+意图识别：分析用户提供的原始想法（主体是什么？动作是什么？风格是什么？）。
+结构化扩充 (The LTX Formula)：
+Subject (主体)：详细描述外观、纹理、颜色。
+Action (动作)：使用动词描述即时发生的动作（e.g., "The girl turns her head slowly" 而不是 "A turned head"）。
+Environment (环境)：描述背景、氛围、光照。
+Camera (运镜)：指定观察视角和镜头运动。
+负面词过滤：确保不使用 Negative Prompts（因为 LTX Video 不需要/不支持），也不堆砌 4k, best quality 等无意义词汇。
+最终输出：输出一段连贯的、约 100-200 词的英文段落。
+Constraints
+禁止标签化：不要输出 tag1, tag2, tag3 这种格式，必须是完整的英文句子。
+专注可见性：只描述视觉上能看到的东西，不要描述心理活动或抽象概念。
+首句点题：提示词的第一句话必须清晰定义主体和核心动作，因为 T5 编码器对头部信息最敏感。
+Output Format
+请按照以下格式输出：(不要出现无关的废话)
 
-提示词方式1：主体（主体描述）＋场景（场景描述）＋运动（运动描述）＋镜头语言＋氛围词 ＋风格化
-主体描述：主体描述是对主体外观特征细节的描述，可通过形容词或短句列举，例如「一位身着少数民族服饰的黑发苗族少女」、「一位来自异世界的飞天仙子，身着破旧却华丽的服饰，背后展开一对由废墟碎片构成的奇异翅膀」。
-场景描述：场景描述是对主体所处环境特征细节的描述，可通过形容词或短句列举。
-运动描述：运动描述是对运动特征细节的描述，包含运动的幅度、速率和运动作用的效果，例如「猛烈地摇摆」、「缓慢地移动」、「打碎了玻璃」。
-镜头语言：镜头语言包含景别、视角、镜头、运镜等，常见镜头语言详见下方提示词词典。
-氛围词：氛围词是对预期画面氛围的描述，例如「梦幻」、「孤独」、「宏伟」，常见氛围词详见下方提示词词典。
-风格化：风格化是对画面风格语言的描述，例如「赛博朋克」、「勾线插画」、「废土风格」，常见风格化详见下方提示词词典。
-情感修饰词：
-梦幻般的、紧张的、宁静的、未来感的、复古的
-"画面充满神秘感，背景有若隐若现的星光"
-"快速运镜配合紧张的音乐节奏，营造悬疑氛围"
-示例优化：
-原始提示词：机器人在城市中行走。
-优化后：
-未来主义风格的银色人形机器人以流畅机械动作穿越霓虹灯闪烁的赛博朋克都市，雨滴在玻璃幕墙反射出霓虹光斑，镜头以手持跟拍方式从低角度仰视，背景虚化为紫色光晕。
-
-提示词方式2：适用于对镜头运动有明确要求、在提示词方式1之上添加更具体的运镜描述可以有效提升视频的动感和叙事性。
-提示词=风格化运镜描述＋主体（主体描述）＋场景（场景描述）＋运动（运动描述）+镜头语言＋氛围词：运镜描述是对镜头运动的具体描述，在时间线上，将镜头运动和画面内容的变化有效结合可以有效提升视频叙事的丰富性和专业度。可以通过代入导演的视角来想象和书写运镜过程。需要注意将镜头运动的时长合理控制在5s内，避免过于复杂的运镜，同时如果是图片生成视频，请注意这是一个镜头的内容，不可以有切镜的描述例如从全景切特写。
-镜头词典参考：
-景别：特写、全景、中景
-视角：第一人称视角、俯视
-镜头类型：广角镜头、鱼眼镜头、微距镜头、移轴镜头
-风格化词汇：
-艺术风格：水墨画、油画、赛博朋克、蒸汽波、浮世绘
-光影效果：柔和自然光、冷色调月光、强光照射
-材质细节：金属光泽、丝绸质感、半透明材质
-示例优化：
-原始提示词：太空飞船起飞。
-优化后：
-深空中的银色宇宙飞船喷射蓝色等离子火焰垂直升空，镜头以广角从飞船底部仰拍并缓慢旋转，背景有星云流动效果。
-
-提示词方式3：适用于有明确该类创意需求的用户，在提示词方式1/提示词方式2的基础上添加形变描述可以有效提升视频的趣味性，带来意想不到的视觉效果。
-提示词 = 主体A（主体描述）+形变过程+主体B（主体描述）＋场景（场景描述）+运动（运动描述）+镜头语言＋氛围词＋风格化
-主体A：主体A指主体形变前的特征和状态。
-形变过程：形变过程是对主体从A形态变为B形态的过程描述。详细的过程描述可以有效提升形变的自然度和生动性。
-主体B：主体B指主体形变后的特征和状态。
-动态变形指令：
-物体变形：逐渐变形为…（如「机器人手臂逐渐变形为机械藤蔓」）。
-材质变化：表面纹理从…变为…（如「水晶雕像表面纹理从光滑变为像素化」）。
-粒子化/融合：分裂成粒子重组为…（如「火焰化作金色粒子重组为凤凰」）。
-示例优化：
-原始提示词：花朵绽放。
-优化后：
-黑色土壤中缓慢升起透明晶体，晶体内部逐渐绽放出霓虹粉色的机械花朵，花瓣边缘分裂成发光粒子形成光晕，镜头从侧面俯拍花朵盛开过程。
-
-避免生成画面模糊，可添加清晰度参数：8K分辨率，超清细节。
-示例：8K分辨率的机械蜘蛛攀爬在锈蚀金属表面
-避免生成风格不统一，可添加明确艺术流派：新海诚风格，柔和水彩质感等。
-示例：新海诚风格的樱花雨与少年奔跑场景
-避免运动不连贯，可添加描述镜头轨迹：镜头以360°环绕主体匀速移动。
-示例：镜头以360°环绕芭蕾舞者旋转拍摄。
-
-最后请确保包含以下要素，同时需要合并为一句自然语句（中文及英文）：
-主体：明确核心对象（人物、物体、抽象概念）。
-场景：环境细节（室内/室外、季节、时间）。
-动作/运动：动态过程或静态姿势。
-视觉风格：艺术流派、画质要求。
-镜头指令：视角、景别、运动路径。（若没有镜头运动的话请强调镜头固定不动）
-增强细节：光线、色彩、特效、情绪氛围。
-特别注意：确保镜头与镜头之间的衔接流畅，不能出现例如「手持跟拍轨道推进」这种不合理的运镜方式，因为手持跟拍是有抖动的，轨道推进是平滑的。最终输出一段中文的自然语言，不能换行，不能在段头和段尾增加意义不明的符号，提示词以：中文提示词/... 这样的格式输出。例如：中文提示词/一位身穿红色西装外套的女性..."""
+[A detailed, descriptive paragraph in English. Starts with the main subject and action. Includes specific details about lighting, texture, and camera movement. Flowing naturally without breaking into comma-separated tags.]"""
 
         if not requests:
             raise ImportError("requests库缺失。请在您的ComfyUI环境中运行 'pip install requests' 来安装。")
@@ -271,30 +232,12 @@ class ImageVideoPromptOptimizer:
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
+                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX Video专用提示词：{prompt}"},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
                 ]}
             ]
             payload = {"model": "glm-4v-plus", "messages": messages, "stream": False}
             api_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
-        elif provider == "OpenRouter":
-            headers["Authorization"] = f"Bearer {api_key}"
-            headers["HTTP-Referer"] = "http://localhost"
-            # 构建消息，包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]}
-            ]
-            payload = {"messages": messages, "model": "qwen/qwen2-vl-7b-instruct:free", "stream": False}
-            api_url = "https://openrouter.ai/api/v1/chat/completions"
             response = requests.post(api_url, headers=headers, json=payload)
             response.raise_for_status()
             result = response.json()
@@ -306,7 +249,7 @@ class ImageVideoPromptOptimizer:
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成视频提示词：{prompt}"},
+                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX Video专用提示词：{prompt}"},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
                 ]}
             ]
@@ -321,7 +264,7 @@ class ImageVideoPromptOptimizer:
 
         return prompt
 
-    def optimize_prompt(self, 图片, 用户描述, AI服务商, API_KEY, 随机种子, 硅基流动模型选择="QWENVL", **kwargs):
+    def generate_ltx_prompt(self, 图片, 用户描述, AI服务商, API_KEY, 随机种子, 硅基流动模型选择="QWENVL", **kwargs):
         # 设置随机种子
         if 随机种子 == -1:
             随机种子 = random.randint(0, 0xffffffffffffffff)
@@ -354,71 +297,26 @@ class ImageVideoPromptOptimizer:
         full_prompt = f"用户描述：{full_description}"
 
         try:
-            print(f"[NakuNode ImageOptimizer] Optimizing prompt with {AI服务商}...")
+            print(f"[NakuNode LTXPrompter] Generating LTX prompt with {AI服务商}...")
             # 如果是硅基流动服务商，传递模型选择
             if AI服务商 == "硅基流动":
                 optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64, 硅基流动模型选择)
             else:
                 optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64)
-            print(f"[NakuNode ImageOptimizer] Optimized response: {optimized_response}")
+            print(f"[NakuNode LTXPrompter] Generated response: {optimized_response}")
 
-            # 解析响应，通常应该包含中文和英文版本
-            # 尝试查找中文和英文部分
-            # 首先尝试查找是否有明确标识的部分
-            zh_part = ""
-            en_part = ""
-
-            # 尝试解析返回的内容，提取中文和英文版本
-            lines = optimized_response.split('\n')
-            in_chinese = False
-            in_english = False
-
-            chinese_lines = []
-            english_lines = []
-
-            for line in lines:
-                line = line.strip()
-
-                # 检查是否包含中文字符（简化检查）
-                if any('\u4e00' <= char <= '\u9fff' for char in line):
-                    if not line.startswith("English:") and not line.startswith("英文:") and "English" not in line and "英文" not in line:
-                        chinese_lines.append(line)
-
-                # 检查是否可能包含英文
-                if any(char.isalpha() or char.isspace() or char in ',.!?:;\'\"-()[]{}' for char in line) and not any('\u4e00' <= char <= '\u9fff' for char in line):
-                    if line and not line.startswith("中文:") and not line.startswith("Chinese:") and "中文" not in line and "Chinese" not in line:
-                        english_lines.append(line)
-
-            # 合并结果
-            zh_part = ' '.join(chinese_lines).strip()
-            en_part = ' '.join(english_lines).strip()
-
-            # 如果解析不成功，使用整个响应作为两种语言
-            if not zh_part and not en_part:
-                zh_part = optimized_response
-                en_part = optimized_response
-            elif not zh_part:
-                zh_part = full_description  # 使用融合后的描述作为中文
-            elif not en_part:
-                en_part = full_description  # 使用融合后的描述作为英文
-
-            # 如果解析结果还不够好，直接返回AI的完整响应
-            if len(zh_part) < len(full_description) / 2:  # 如果中文部分太短
-                zh_part = optimized_response
-            if len(en_part) < len(full_description) / 2:  # 如果英文部分太短
-                en_part = optimized_response
-
-            return (zh_part, en_part)
+            # 返回结果 (AI生成提示词, 初始提示词)
+            return (optimized_response, full_description)
         except Exception as e:
-            print(f"[NakuNode ImageOptimizer] Error during LLM optimization: {e}")
+            print(f"[NakuNode LTXPrompter] Error during LLM processing: {e}")
             # 发生错误时返回融合后的描述
-            return (f"优化错误: {e}. 原始描述: {full_description}", f"Optimization Error: {e}. Original: {full_description}")
+            return (f"处理错误: {e}. 原始描述: {full_description}", f"Processing Error: {e}. Original: {full_description}")
 
 
-# --- 註冊節點到 ComfyUI ---
+# --- 注册节点到 ComfyUI ---
 NODE_CLASS_MAPPINGS = {
-    "ImageVideoPromptOptimizer": ImageVideoPromptOptimizer
+    "NakuNodeLTXPrompter": NakuNodeLTXPrompter
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ImageVideoPromptOptimizer": "NakuNode-单图视频提示词生成器"
+    "NakuNodeLTXPrompter": "NakuNode-LTXPrompter"
 }
