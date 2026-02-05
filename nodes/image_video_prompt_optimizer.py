@@ -101,7 +101,7 @@ class ImageVideoPromptOptimizer:
                 "图片": ("IMAGE", {}),
                 "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在草地上玩耍"}),
                 "AI服务商": (provider_list,),
-                "API_KEY": ("STRING", {"multiline": False, "default": "选择内置服务商时无需填写"}),
+                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }

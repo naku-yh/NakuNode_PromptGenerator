@@ -101,7 +101,7 @@ class DualImageVideoScriptGenerator:
                 "结束图片": ("IMAGE", {}),
                 "用户描述": ("STRING", {"multiline": True, "default": "根据两张图片生成一段连贯的视频分镜脚本"}),
                 "AI服务商": (provider_list,),
-                "API_KEY": ("STRING", {"multiline": False, "default": "选择内置服务商时无需填写"}),
+                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }

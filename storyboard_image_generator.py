@@ -44,7 +44,7 @@ class StoryboardImageGenerator:
                 "AI服务商": (provider_list,),
                 "模型选择": (model_list, {"default": "QwenEdit"}),  # 新增模型选择
                 "分镜数量": ("INT", {"default": 3, "min": 1, "max": 12}),
-                "API_KEY": ("STRING", {"multiline": False, "default": "选择内建服务商时无需填写"}),
+                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
@@ -426,12 +426,12 @@ Next Scene：...
         print(debug_info)
 
         if AI服务商 == "智谱AI":
-            if not API_KEY or API_KEY == "选择内建服务商时无需填写":
+            if not API_KEY or API_KEY == "请填写您的API密钥或令牌":
                 raise Exception("必须填入智谱/硅基流动的 API")
             # 对每张图片调用API（如果有多张图片，我们只使用第一张作为参考，或者将它们都传给API）
             result = self.call_zhipu_multi_image_api(image_base64_list, base_prompt, API_KEY, 模型选择)
         elif AI服务商 == "硅基流动":
-            if not API_KEY or API_KEY == "选择内建服务商时无需填写":
+            if not API_KEY or API_KEY == "请填写您的API密钥或令牌":
                 raise Exception("必须填入智谱/硅基流动的 API")
             result = self.call_siliconflow_multi_image_api(image_base64_list, base_prompt, API_KEY, 硅基流动模型选择, 模型选择)
         else:

@@ -41,7 +41,7 @@ class NakuNodeImagePrompter:
                 "图片": ("IMAGE", {}),
                 "文字需求": ("STRING", {"multiline": True, "default": "请输入对图片的具体需求或补充说明"}),
                 "AI服务商": (provider_list,),
-                "API_KEY": ("STRING", {"multiline": False, "default": "选择内置服务商时无需填写"}),
+                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
                 "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
