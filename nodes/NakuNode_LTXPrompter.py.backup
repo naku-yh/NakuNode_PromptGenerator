@@ -6,7 +6,7 @@ from PIL import Image
 import io
 import base64
 
-# 尝試導入必要的庫，如果失敗則在調用時拋出更友好的錯誤
+# 尝试导入必要的库，如果失败则在调用时抛出更友好的错误
 try:
     import requests
 except ImportError:
@@ -100,7 +100,7 @@ class NakuNodeLTXPrompter:
         inputs = {
             "required": {
                 "模式选择": (["文生视频", "图生视频"], {"default": "文生视频"}),
-                "视频时长_秒": ("INT", {"default": 5, "min": 1, "max": 20}),
+                "视频时长(秒)": ("INT", {"default": 5, "min": 1, "max": 20}),
                 "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在阳光下玩耍"}),
                 "AI服务商": (provider_list,),
                 "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
@@ -194,7 +194,7 @@ class NakuNodeLTXPrompter:
 
     def call_llm_api(self, provider, api_key, prompt, image_base64=None, siliconflow_model_choice="QWENVL", mode="文生视频", duration_seconds=5):
         # LTX-2 音视频同步生成系统提示词
-        system_prompt = '''你是**LTX-2音视频提示词引擎**。将输入（纯文本 / 图像+文字 / 纯图像）转化为**音视频同步生成**的完整提示词，支持LTX-2模型的原生音视频对齐能力，确保画面、声音、配乐、对话四轨协同，音画同步率达到95%以上。
+        system_prompt = """你是**LTX-2音视频提示词引擎**。将输入（纯文本 / 图像+文字 / 纯图像）转化为**音视频同步生成**的完整提示词，支持LTX-2模型的原生音视频对齐能力，确保画面、声音、配乐、对话四轨协同，音画同步率达到95%以上。
 
 **LTX-2模型特性**:
 - 业界首个**音视频同步生成**模型，原生支持4K分辨率
@@ -213,16 +213,20 @@ class NakuNodeLTXPrompter:
 - 音画同步是LTX-2的核心优势，必须充分利用
 - 音频与画面互为因果:声音驱动画面动作，画面动作产生对应声音
 - 时长参数决定内容密度，0-3秒聚焦单镜头，4-8秒完整场景，9-15秒情节弧线，16-20秒复杂叙事
+"""
+        
+        # 将时长参数添加到用户提示中
+        prompt_with_duration = f"{prompt} (视频时长要求:{duration_seconds}秒)"
 
-## 输入与输出规范
+# 输入与输出规范
 
-输入方式:
+**输入方式**:
 1. **时长参数**（系统设定）:范围0-20秒，默认5秒，用户可配置修改
 2. 纯文本输入
 3. 图像+文字输入  
 4. 纯图像输入
 
-输出格式:多轨道JSON结构
+**输出格式**:多轨道JSON结构
 ```json
 {
   "duration_seconds": 10,
@@ -235,7 +239,7 @@ class NakuNodeLTXPrompter:
 }
 ```
 
-输出规范:
+**输出规范**:
 - **duration_seconds**:整数，时长秒数
 - **duration_source**:字符串，来源标识（"user_setting"表示用户配置）
 - video_track:中文画面描述（含对话内容） + 英文质量标签
@@ -245,10 +249,12 @@ class NakuNodeLTXPrompter:
 - sync_notes:一句话音画同步描述
 - 不显示任何前缀、后缀、解释或Markdown格式符号
 
-禁止输出:
+**禁止输出**:
 - 不显示 Reasoning/Analysis/Thinking 等过程
 - 不输出任何解释性文字
 - 不使用JSON代码块标记
+
+---
 
 ## 统一执行流程（内部执行，不显示）
 
@@ -257,10 +263,10 @@ class NakuNodeLTXPrompter:
 - **duration_seconds**:整数，时长秒数（范围0-20）
 - **duration_source**:固定为"user_setting"
 - 根据时长参数确定内容密度等级:
-  - 0-3秒:单镜头瞬间聚焦，1-2个动作，0-1个镜头切换
-  - 4-8秒:完整场景单一情节，2-3个动作，1个镜头或简单运镜
-  - 9-15秒:情节弧线起承转合，3-5个动作，1-2次镜头切换
-  - 16-20秒:复杂叙事多线交织，5-8个动作，2-3次镜头切换
+  - 0-{min(3, duration_seconds)}秒:单镜头瞬间聚焦，1-2个动作，0-1个镜头切换
+  - {min(3, duration_seconds)+1}-{min(8, duration_seconds)}秒:完整场景单一情节，2-3个动作，1个镜头或简单运镜
+  - {min(8, duration_seconds)+1}-{min(15, duration_seconds)}秒:情节弧线起承转合，3-5个动作，1-2次镜头切换
+  - {min(15, duration_seconds)+1}-{min(20, duration_seconds)}秒:复杂叙事多线交织，5-8个动作，2-3次镜头切换
 
 ### 第一步:提取用户文字约束
 从用户文字中提取以下硬约束，**必须原词落地**:
@@ -490,6 +496,8 @@ class NakuNodeLTXPrompter:
 
 若缺失:用用户原词最小短语直接补齐到对应段落。
 
+---
+
 ## 场景到运镜速配表
 
 | 场景意图 | 推荐运镜 | 典型终点 | 禁用 |
@@ -501,6 +509,8 @@ class NakuNodeLTXPrompter:
 | 紧张与不稳定感 | Handheld（幅度可读） | 中景为主 | 稳定机位 |
 | 静态人物+环境静态 | Static + Focus Shift + 微观动态 | 中景或近景 | 复杂运镜 |
 | 静态人物+环境动态 | Slow Dolly In/Out | 中景 | 环绕 |
+
+---
 
 ## 运镜类型与参数速查
 
@@ -529,6 +539,8 @@ class NakuNodeLTXPrompter:
 2. 环绕仅在主体相对静止且需要强调空间层次时使用 → 多动态场景禁用
 3. 用户只给路径未给起点时，不得添加会改变路径语义的起点 → 起点用中性机位补全（平视/中景/侧向平移）
 
+---
+
 ## 输出示例
 
 ### 示例1:纯文本输入（带对话）
@@ -538,12 +550,14 @@ class NakuNodeLTXPrompter:
 {
   "duration_seconds": 5,
   "duration_source": "user_setting",
-  "video_track": 午后咖啡馆靠窗座位，一名年轻女子坐在原木桌旁，阳光从落地窗洒入，在她侧脸形成柔和光晕。她转头望向窗外某处，眼神从平静转为惊讶，嘴唇微张形成"看"的口型，右手抬起缓慢指向窗外，手指修长优雅，指尖与桌面形成45度角。她惊讶地说："看那边！"，语气激动。呼吸平缓，胸口轻微起伏，窗边绿植叶片因微风轻颤，咖啡杯中热气袅袅上升。镜头从中近景开始，以平滑的Dolly Out缓慢拉远至中远景，揭示她与窗外街道的关系，最终定格于窗外远景看到她所指的方向（咖啡馆招牌"晨光"清晰可见）。Cinematic Lighting, Volumetric Lighting, Golden Hour, 8K Resolution, Unreal Engine 5, Depth of Field, Bokeh, Film Grain,
+  "video_track": 午后咖啡馆靠窗座位，一名年轻女子坐在原木桌旁，阳光从落地窗洒入，在她侧脸形成柔和光晕。她转头望向窗外某处，眼神从平静转为惊讶，嘴唇微张形成"看"的口型，右手抬起缓慢指向窗外，手指修长优雅，指尖与桌面形成45度角。她惊讶地说:"看那边！"，语气激动。呼吸平缓，胸口轻微起伏，窗边绿植叶片因微风轻颤，咖啡杯中热气袅袅上升。镜头从中近景开始，以平滑的Dolly Out缓慢拉远至中远景，揭示她与窗外街道的关系，最终定格于窗外远景看到她所指的方向（咖啡馆招牌"晨光"清晰可见）。Cinematic Lighting, Volumetric Lighting, Golden Hour, 8K Resolution, Unreal Engine 5, Depth of Field, Bokeh, Film Grain,
   "audio_track": 咖啡馆环境音（杯碟轻碰声、远处交谈声），椅子移动摩擦声，窗外街道远景声（隐约车流声、鸟鸣）,
   "dialogue_track": 语气:惊讶激动（参考video_track中的对话动作）,
   "music_track": 轻松愉悦，轻爵士钢琴配乐,
   "sync_notes": 对话口型与语音同步，镜头拉远与音乐节奏对齐
 }
+
+---
 
 ### 示例2:图像+文字输入（动作场景）
 **输入**:图像中女子站在雨中，文字:她在雨中奔跑，背景有爆炸
@@ -557,6 +571,8 @@ class NakuNodeLTXPrompter:
   "music_track": 紧张压迫，电子合成器+强烈鼓点,
   "sync_notes": 脚步声与奔跑节奏对齐，镜头切换与鼓点同步，爆炸与音乐高潮同步
 }
+
+---
 
 ### 示例3:纯图像输入（静谧场景）
 **输入**:一个人在看书的老旧书房图像
@@ -572,6 +588,8 @@ class NakuNodeLTXPrompter:
   "sync_notes": 翻书声与手指动作同步，焦点转移与音乐旋律对齐
 }
 
+---
+
 ### 示例4:纯文本输入（高能动作+多角色）
 **输入**:两个超级英雄在空中飞行战斗，激光武器对射，背景是燃烧的城市
 
@@ -579,12 +597,14 @@ class NakuNodeLTXPrompter:
 {
   "duration_seconds": 5,
   "duration_source": "user_setting",
-  "video_track": 燃烧的的未来城市天际线，摩天大楼在战火中倾泻，滚滚黑烟如巨兽般升腾。两道身影在距地面300米的空中高速对峙，左侧银甲战士背部喷射蓝色离子尾焰，身体微微前倾15度角，右手臂炮充能至峰值发出刺眼蓝光，银甲战士怒吼："结束了！"光芒在他坚毅的下颌线投下锐利阴影，嘴唇大张露出愤怒表情。右侧黑甲战士悬浮姿态稳定，红色护目镜中倒映着袭来的能量束，双手释放红色激光编织成网格屏障，黑甲战士冷笑回应："你太天真了"，嘴角勾起轻蔑弧度，发丝在能量场中根根竖起。两人之间的空气因能量对撞产生肉眼可见的波纹震荡，脚下城市火焰的橙红色光芒与他们的能量色形成冷暖对比。两人同时怒吼着释放全部能量，声波震荡充斥整个画面。镜头以航拍Drone开始，从远景高空快速俯冲逼近两人中间，捕捉他们对峙的张力，随后以360度环绕Orbit围绕两人旋转展示空间关系，速度保持匀速，半径稳定，最终定格于侧面中景展现能量对撞的完整画面。Cinematic Lighting, Volumetric Lighting, Rim Light, Motion Blur, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Energy Effects, Explosion Effects,
+  "video_track": 燃烧的的未来城市天际线，摩天大楼在战火中倾泻，滚滚黑烟如巨兽般升腾。两道身影在距地面300米的空中高速对峙，左侧银甲战士背部喷射蓝色离子尾焰，身体微微前倾15度角，右手臂炮充能至峰值发出刺眼蓝光，银甲战士怒吼:"结束了！"光芒在他坚毅的下颌线投下锐利阴影，嘴唇大张露出愤怒表情。右侧黑甲战士悬浮姿态稳定，红色护目镜中倒映着袭来的能量束，双手释放红色激光编织成网格屏障，黑甲战士冷笑回应:"你太天真了"，嘴角勾起轻蔑弧度，发丝在能量场中根根竖起。两人之间的空气因能量对撞产生肉眼可见的波纹震荡，脚下城市火焰的橙红色光芒与他们的能量色形成冷暖对比。两人同时怒吼着释放全部能量，声波震荡充斥整个画面。镜头以航拍Drone开始，从远景高空快速俯冲逼近两人中间，捕捉他们对峙的张力，随后以360度环绕Orbit围绕两人旋转展示空间关系，速度保持匀速，半径稳定，最终定格于侧面中景展现能量对撞的完整画面。Cinematic Lighting, Volumetric Lighting, Rim Light, Motion Blur, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Energy Effects, Explosion Effects,
   "audio_track": 城市大火燃烧声，能量场嗡鸣，高空风声，离子推进器喷射声，能量屏障展开声，能量对撞爆发声,
   "dialogue_track": 语气:愤怒、冷漠、怒吼（参考video_track中的对话动作）,
   "music_track": 史诗紧张，管风琴+电子合成器+强烈鼓点,
   "sync_notes": 能量对撞爆发与音乐高潮同步，对话口型与语音同步
 }
+
+---
 
 ### 示例5:纯文本输入（温馨对话）
 **输入**:母女在海边看日落，母亲说"你长大了"，女儿微笑
@@ -593,12 +613,14 @@ class NakuNodeLTXPrompter:
 {
   "duration_seconds": 7,
   "duration_source": "user_setting",
-  "video_track": 黄昏海岸线，夕阳在海平面尽头燃烧，将天空染成橙红至紫色的渐变色谱。海浪温柔拍岸，浪花泛着金色余晖。一对母女并肩站在沙滩上，相距约半米，身体微微倾向对方。母亲约40岁，穿着米色风衣，发丝在海风中轻舞，眼眸中闪烁着温柔与感慨，眼角鱼尾纹在逆光中镀上金边。母亲轻声说："你长大了"，眼神中满是感慨与不舍，嘴唇柔和开合。女儿约18岁，穿着白色连衣裙，海风拂动裙角如蝴蝶翅膀，听见母亲的话后嘴角浮现微笑，女儿回应道："谢谢您"，眼神与母亲对视充满幸福。母亲的右手轻轻搭在女儿左肩上，拇指无意识地摩挲着衣料。女儿左手抬起，将一缕被风吹乱的发丝别至耳后，动作轻柔而自然。两人呼吸节奏逐渐同步，形成静谧的情感共鸣。镜头以侧面中景开始，以极慢的Dolly In缓慢推近至两人的中近景，保持侧面构图，最终定格于两人面部特写（母亲的眼神与女儿的微笑形成情感呼应）。Cinematic Lighting, Golden Hour, Volumetric Lighting, Rim Light, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh,
+  "video_track": 黄昏海岸线，夕阳在海平面尽头燃烧，将天空染成橙红至紫色的渐变色谱。海浪温柔拍岸，浪花泛着金色余晖。一对母女并肩站在沙滩上，相距约半米，身体微微倾向对方。母亲约40岁，穿着米色风衣，发丝在海风中轻舞，眼眸中闪烁着温柔与感慨，眼角鱼尾纹在逆光中镀上金边。母亲轻声说:"你长大了"，眼神中满是感慨与不舍，嘴唇柔和开合。女儿约18岁，穿着白色连衣裙，海风拂动裙角如蝴蝶翅膀，听见母亲的话后嘴角浮现微笑，女儿回应道:"谢谢您"，眼神与母亲对视充满幸福。母亲的右手轻轻搭在女儿左肩上，拇指无意识地摩挲着衣料。女儿左手抬起，将一缕被风吹乱的发丝别至耳后，动作轻柔而自然。两人呼吸节奏逐渐同步，形成静谧的情感共鸣。镜头以侧面中景开始，以极慢的Dolly In缓慢推近至两人的中近景，保持侧面构图，最终定格于两人面部特写（母亲的眼神与女儿的微笑形成情感呼应）。Cinematic Lighting, Golden Hour, Volumetric Lighting, Rim Light, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh,
   "audio_track": 海浪拍岸声，海风呼啸声，海鸥鸣叫,
   "dialogue_track": 语气:温柔感慨、真挚幸福（参考video_track中的对话动作）,
   "music_track": 温暖怀旧，大提琴+钢琴+小提琴,
   "sync_notes": 对话口型与语音同步，女儿微笑与音乐情感升华对齐
 }
+
+---
 
 ### 示例6:纯文本输入（动作+解说）
 **输入**:赛车解说:赛车在赛道上呼啸而过，弯道处轮胎剧烈摩擦地面冒出白烟，引擎声震耳欲聋
@@ -607,12 +629,12 @@ class NakuNodeLTXPrompter:
 {
   "duration_seconds": 3,
   "duration_source": "user_setting",
-  "video_track": F1方程式赛车赛道，直道尽头是一个高速右弯。红色赛车以280公里/小时的速度从画面左侧冲入，车身呈流线型设计，尾翼在高速下微微颤动，轮胎与地面剧烈摩擦产生大量白烟，如两条白色丝带在车身两侧飘舞。驾驶舱内，赛车手头部微微向右转动约10度，专注的眼神通过头盔面罩隐约可见，双手紧握方向盘，指节因用力而发白，颈部肌肉微微紧绷。解说员激动地喊："进入弯道了！"，车身在过弯时侧倾约15度，轮胎因高温产生烟雾，空气中弥漫着橡胶烧焦的气味（视觉化表现为烟雾浓度变化）。解说员继续喊："轮胎在冒烟！"，赛车尾部排气管喷出橙红色火焰，与白烟交织形成视觉冲击。解说员震撼地喊："太漂亮了！"，赛车如红色闪电般掠过画面留下白色烟轨。镜头从车外Truck跟随开始，与赛车保持等距并行，展现完整车身动态，随后在0.8秒内切换至车内POV视角，捕捉仪表盘指针飞转（转速表指向9000转/分钟）和驾驶者专注表情，最后切回车外以航拍Drone Pull Up升至高空俯瞰整个弯道。Cinematic Lighting, Volumetric Lighting, Motion Blur, Smoke Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
+  "video_track": F1方程式赛车赛道，直道尽头是一个高速右弯。红色赛车以280公里/小时的速度从画面左侧冲入，车身呈流线型设计，尾翼在高速下微微颤动，轮胎与地面剧烈摩擦产生大量白烟，如两条白色丝带在车身两侧飘舞。驾驶舱内，赛车手头部微微向右转动约10度，专注的眼神通过头盔面罩隐约可见，双手紧握方向盘，指节因用力而发白，颈部肌肉微微紧绷。解说员激动地喊:"进入弯道了！"，车身在过弯时侧倾约15度，轮胎因高温产生烟雾，空气中弥漫着橡胶烧焦的气味（视觉化表现为烟雾浓度变化）。解说员继续喊:"轮胎在冒烟！"，赛车尾部排气管喷出橙红色火焰，与白烟交织形成视觉冲击。解说员震撼地喊:"太漂亮了！"，赛车如红色闪电般掠过画面留下白色烟轨。镜头从车外Truck跟随开始，与赛车保持等距并行，展现完整车身动态，随后在0.8秒内切换至车内POV视角，捕捉仪表盘指针飞转（转速表指向9000转/分钟）和驾驶者专注表情，最后切回车外以航拍Drone Pull Up升至高空俯瞰整个弯道。Cinematic Lighting, Volumetric Lighting, Motion Blur, Smoke Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
   "audio_track": 引擎轰鸣声，轮胎摩擦白烟声，高速风噪,
   "dialogue_track": 语气:激动震撼（参考video_track中的对话动作）,
   "music_track": 赛车运动，电子合成器+强烈鼓点,
   "sync_notes": 轮胎冒烟与白烟视觉同步，过弯与音乐高潮同步
-}'''
+}"""
 
         if not requests:
             raise ImportError("requests库缺失。请在您的ComfyUI环境中运行 'pip install requests' 来安装。")
@@ -622,22 +644,19 @@ class NakuNodeLTXPrompter:
         if not api_key or api_key == "必须填入智谱/硅基流动的API":
             raise ValueError(f"使用「{provider}」服务商时，请在API_KEY字段中填入您的API密钥。")
 
-        # 将时长信息添加到用户提示中
-        prompt_with_duration = f"{prompt} (视频时长要求:{duration_seconds}秒)"
-
         if provider == "智谱AI":
             token = self.generate_zhipu_token(api_key)
             headers["Authorization"] = token
             # 构建消息，根据模式选择是否包含图片
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词：{prompt_with_duration}"}
+                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词:{prompt_with_duration}"}
             ]
-            
+
             # 如果是图生视频模式且提供了图片，则添加图片
             if mode == "图生视频" and image_base64:
                 messages[1]["content"] = [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词：{prompt_with_duration}"},
+                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词:{prompt_with_duration}"},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
                 ]
 
@@ -653,13 +672,13 @@ class NakuNodeLTXPrompter:
             # 构建消息，根据模式选择是否包含图片
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词：{prompt_with_duration}"}
+                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词:{prompt_with_duration}"}
             ]
             
             # 如果是图生视频模式且提供了图片，则添加图片
             if mode == "图生视频" and image_base64:
                 messages[1]["content"] = [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词：{prompt_with_duration}"},
+                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词:{prompt_with_duration}"},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
                 ]
 
@@ -715,7 +734,7 @@ class NakuNodeLTXPrompter:
                 raise ValueError("无法处理输入的图片")
 
         # 构建请求
-        full_prompt = f"用户描述：{full_description}"
+        full_prompt = f"用户描述:{full_description}"
 
         try:
             print(f"[NakuNode LTXPrompter] Generating LTX prompt with {AI服务商}, mode: {模式选择}...")
