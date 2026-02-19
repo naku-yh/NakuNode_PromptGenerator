@@ -152,7 +152,7 @@ class NakuNodeLTXPrompter:
             img = Image.fromarray(img_array)
 
         # 调整图片大小以避免API错误
-        MAX_DIMENSION = 1024
+        MAX_DIMENSION = 1920
         if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
             aspect_ratio = img.width / img.height
             if img.width > img.height:

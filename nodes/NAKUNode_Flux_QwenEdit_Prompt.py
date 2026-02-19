@@ -381,7 +381,7 @@ class KontextPromptGeneratorNode:
         i = 255. * image_tensor.cpu().numpy()
         img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8).squeeze())
 
-        MAX_DIMENSION = 1024
+        MAX_DIMENSION = 1920
         if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
             img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
             print(f"[NakuNode Kontext] Image resized to {img.width}x{img.height} to prevent API errors.")
