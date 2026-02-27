@@ -1,4 +1,4 @@
-# NakuNode Prompter V1.0
+# NakuNode Prompter V1.1
 
 <div align="center">
 
@@ -215,7 +215,7 @@ pip install -r requirements.txt
 
 ## 📝 更新日志 | Changelog
 
-### V。1 - API KEY分离加密存储机制 ｜ 0228
+### V1.1 - API KEY分离加密存储机制 ｜ 0228
 ### V1.0 - 初始版本 | Initial Release
 
 ---
