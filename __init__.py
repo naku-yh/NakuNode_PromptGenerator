@@ -1,6 +1,46 @@
 # NakuNode-Prompter for ComfyUI
 # Integration of multiple prompt generation and guidance systems
 
+import os
+import json
+
+# 汉化支持 - 加载语言文件
+def load_translation(lang='zh'):
+    """加载翻译文件"""
+    locales_dir = os.path.join(os.path.dirname(__file__), 'locales', lang)
+    if not os.path.exists(locales_dir):
+        return {}
+    
+    translations = {}
+    try:
+        # 加载 nodeDefs.json
+        nodeDefs_path = os.path.join(locales_dir, 'nodeDefs.json')
+        if os.path.exists(nodeDefs_path):
+            with open(nodeDefs_path, 'r', encoding='utf-8') as f:
+                translations['nodeDefs'] = json.load(f)
+        
+        # 加载 main.json
+        main_path = os.path.join(locales_dir, 'main.json')
+        if os.path.exists(main_path):
+            with open(main_path, 'r', encoding='utf-8') as f:
+                translations['main'] = json.load(f)
+    except Exception as e:
+        print(f"[NakuNode-Prompter] Warning: Failed to load translation for {lang}: {e}")
+    
+    return translations
+
+# 应用翻译到节点显示名称
+def apply_translations(translations):
+    """应用翻译到节点显示名称"""
+    if 'nodeDefs' not in translations:
+        return
+    
+    for node_class, node_data in translations['nodeDefs'].items():
+        if node_class in NODE_DISPLAY_NAME_MAPPINGS:
+            if 'display_name' in node_data:
+                # 更新显示名称
+                NODE_DISPLAY_NAME_MAPPINGS[node_class] = node_data['display_name']
+
 # Removed WAN22 nodes
 WAN22_NODE_CLASS_MAPPINGS = {}
 WAN22_NODE_DISPLAY_NAME_MAPPINGS = {}
@@ -96,6 +136,15 @@ except ImportError as e:
     LTX_FTE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS = {}
     LTX_FTE_PROMPTER_AVAILABLE = False
 
+try:
+    from .nodes.NakuNode_VideoParameters import NODE_CLASS_MAPPINGS as VIDEO_PARAMS_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as VIDEO_PARAMS_NODE_DISPLAY_NAME_MAPPINGS
+    VIDEO_PARAMS_AVAILABLE = True
+except ImportError as e:
+    print(f"[NakuNode-Prompter] Warning: Could not import Video Parameters nodes: {e}")
+    VIDEO_PARAMS_NODE_CLASS_MAPPINGS = {}
+    VIDEO_PARAMS_NODE_DISPLAY_NAME_MAPPINGS = {}
+    VIDEO_PARAMS_AVAILABLE = False
+
 # Combine all node mappings
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(WAN22_NODE_CLASS_MAPPINGS)
@@ -109,6 +158,7 @@ NODE_CLASS_MAPPINGS.update(IMAGE_PROMPTER_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(PROMPT_EVO_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(LTX_PROMPTER_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(LTX_FTE_PROMPTER_NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(VIDEO_PARAMS_NODE_CLASS_MAPPINGS)
 
 NODE_DISPLAY_NAME_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS.update(WAN22_NODE_DISPLAY_NAME_MAPPINGS)
@@ -122,10 +172,20 @@ NODE_DISPLAY_NAME_MAPPINGS.update(IMAGE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(PROMPT_EVO_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(LTX_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(LTX_FTE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(VIDEO_PARAMS_NODE_DISPLAY_NAME_MAPPINGS)
 
 WEB_DIRECTORY = "web"
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
+
+# 加载并应用中文翻译
+try:
+    zh_translations = load_translation('zh')
+    if zh_translations:
+        apply_translations(zh_translations)
+        print("[NakuNode-Prompter] Chinese translation loaded successfully")
+except Exception as e:
+    print(f"[NakuNode-Prompter] Warning: Failed to apply Chinese translation: {e}")
 
 # Print version and capability information
 print("NakuNode Prompt Generator V1.16 Dev -- A professional prompt generator for WAN / Qwen / Flux / LTX")
@@ -146,3 +206,5 @@ if LTX_PROMPTER_AVAILABLE:
     print(f"[NakuNode-Prompter] LTX Prompter nodes available: {list(LTX_PROMPTER_NODE_CLASS_MAPPINGS.keys())}")
 if LTX_FTE_PROMPTER_AVAILABLE:
     print(f"[NakuNode-Prompter] LTX FTE Prompter nodes available: {list(LTX_FTE_PROMPTER_NODE_CLASS_MAPPINGS.keys())}")
+if VIDEO_PARAMS_AVAILABLE:
+    print(f"[NakuNode-Prompter] Video Parameters nodes available: {list(VIDEO_PARAMS_NODE_CLASS_MAPPINGS.keys())}")

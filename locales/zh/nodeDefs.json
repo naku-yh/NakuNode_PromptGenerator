@@ -1,0 +1,414 @@
+{
+  "NakuNodePromptEVO": {
+    "display_name": "NakuNode-提示词进化器",
+    "description": "高级提示词生成器 - 支持 Qwen/Zimage 和 Flux.2 模型，集成 SiliconFlow 和 Custom API 服务",
+    "inputs": {
+      "text_request": {
+        "name": "文本请求",
+        "tooltip": "请输入您的图像生成请求描述"
+      },
+      "ai_model": {
+        "name": "AI 模型",
+        "tooltip": "选择 AI 模型：Qwen/Zimage 用于人像设计，Flux.2 用于通用图像生成"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商：SiliconFlow 或 Custom 自定义 API"
+      },
+      "seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机，相同种子生成相同结果"
+      },
+      "extra_prompts": {
+        "name": "额外提示词",
+        "tooltip": "额外的提示词参数，格式：摄影参数。人物参数。场景参数"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入您的 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 平台的模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入您的自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 的模型"
+      }
+    }
+  },
+  "ImageVideoPromptOptimizer": {
+    "display_name": "NakuNode-单图视频提示词生成器",
+    "description": "基于单张图片生成专业的视频提示词，支持 SiliconFlow 和 Custom API",
+    "inputs": {
+      "image": {
+        "name": "输入图片",
+        "tooltip": "输入参考图片，长边超过 2560px 会自动缩放"
+      },
+      "user_prompt": {
+        "name": "用户描述",
+        "tooltip": "请输入您的视频生成需求描述"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "random_seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      }
+    }
+  },
+  "ProfessionalVideoPromptGenerator": {
+    "display_name": "NakuNode-专业视频提示词润色器",
+    "description": "专业的视频提示词润色工具，生成中文和英文两个版本的优化提示词",
+    "inputs": {
+      "User_Description": {
+        "name": "用户描述",
+        "tooltip": "请输入您的视频描述，将生成专业的中英文提示词"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "random_seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      }
+    }
+  },
+  "DualImageVideoScriptGenerator": {
+    "display_name": "NakuNode-首尾帧视频提示词生成器",
+    "description": "基于首尾两张图片生成连贯的视频分镜脚本，支持自定义视频时长",
+    "inputs": {
+      "起始图片": {
+        "name": "起始图片",
+        "tooltip": "视频的起始帧图片"
+      },
+      "结束图片": {
+        "name": "结束图片",
+        "tooltip": "视频的结束帧图片"
+      },
+      "用户描述": {
+        "name": "用户描述",
+        "tooltip": "请输入视频脚本描述"
+      },
+      "VideoDuration_count": {
+        "name": "视频时长 (秒)",
+        "tooltip": "视频时长，范围 1-60 秒"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "random_seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      }
+    }
+  },
+  "NakuNodeLTXPrompter": {
+    "display_name": "NakuNode-LTX 视频提示词生成器",
+    "description": "专为 LTX Video 模型设计的提示词生成器，支持文生视频和图生视频模式",
+    "inputs": {
+      "Mode_Select": {
+        "name": "模式选择",
+        "tooltip": "选择生成模式：文生视频或图生视频"
+      },
+      "Video_Duration": {
+        "name": "视频时长 (秒)",
+        "tooltip": "视频时长，范围 1-20 秒"
+      },
+      "User_Description": {
+        "name": "用户描述",
+        "tooltip": "请输入视频描述"
+      },
+      "Input_Image": {
+        "name": "输入图片",
+        "tooltip": "图生视频模式下需要输入参考图片"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "random_seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      }
+    }
+  },
+  "NakuNode_LTX_FTE_Prompter": {
+    "display_name": "NakuNode-LTX 首尾帧提示词生成器",
+    "description": "基于首尾帧图片生成 LTX Video 专用的音视频同步提示词",
+    "inputs": {
+      "First_Frame_Image": {
+        "name": "首帧图片",
+        "tooltip": "视频的起始帧图片"
+      },
+      "Last_Frame_Image": {
+        "name": "尾帧图片",
+        "tooltip": "视频的结束帧图片"
+      },
+      "Video_Duration": {
+        "name": "视频时长 (秒)",
+        "tooltip": "视频时长，范围 1-20 秒"
+      },
+      "User_Description": {
+        "name": "用户描述",
+        "tooltip": "请输入视频描述"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "random_seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      }
+    }
+  },
+  "NakuNode_分镜图片生成": {
+    "display_name": "NakuNode-分镜图片生成器",
+    "description": "多图片分镜脚本生成器，支持最多 6 张参考图片，使用好莱坞电影语法",
+    "inputs": {
+      "storyboard_desc": {
+        "name": "分镜描述",
+        "tooltip": "请输入详细的剧本描述"
+      },
+      "storyboard_count": {
+        "name": "分镜数量",
+        "tooltip": "生成的分镜数量，范围 1-12"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "image_1": {
+        "name": "图片 1",
+        "tooltip": "参考图片 1"
+      },
+      "image_2": {
+        "name": "图片 2",
+        "tooltip": "参考图片 2"
+      },
+      "image_3": {
+        "name": "图片 3",
+        "tooltip": "参考图片 3"
+      },
+      "image_4": {
+        "name": "图片 4",
+        "tooltip": "参考图片 4"
+      },
+      "image_5": {
+        "name": "图片 5",
+        "tooltip": "参考图片 5"
+      },
+      "image_6": {
+        "name": "图片 6",
+        "tooltip": "参考图片 6"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      }
+    }
+  },
+  "NakuNodeTextEditor": {
+    "display_name": "NakuNode-文本编辑节点",
+    "description": "文本编辑工具节点，支持在工作流中修改提示词文本",
+    "inputs": {
+      "text_input": {
+        "name": "输入文本",
+        "tooltip": "输入需要编辑的文本"
+      }
+    }
+  },
+  "NakuNodeImagePrompter": {
+    "display_name": "NakuNode-图片描述生成器",
+    "description": "基于图片生成客观的描述提示词，支持 SiliconFlow 和 Custom API",
+    "inputs": {
+      "image": {
+        "name": "输入图片",
+        "tooltip": "输入需要描述的图片"
+      },
+      "text_request": {
+        "name": "文字需求",
+        "tooltip": "对图片描述的具体需求或补充说明"
+      },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
+      "seed": {
+        "name": "随机种子",
+        "tooltip": "随机种子，-1 表示随机"
+      },
+      "SiliconFlow_API_KEY": {
+        "name": "SiliconFlow API 密钥",
+        "tooltip": "请输入 SiliconFlow API 密钥"
+      },
+      "User_API_KEY": {
+        "name": "自定义 API 密钥",
+        "tooltip": "请输入自定义 API 密钥"
+      },
+      "custom_url": {
+        "name": "自定义 API 地址",
+        "tooltip": "自定义 API 服务地址"
+      },
+      "custom_model": {
+        "name": "自定义模型",
+        "tooltip": "选择自定义 API 模型"
+      },
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
+      }
+    }
+  },
+  "NakuNode_VideoParameters": {
+    "display_name": "NakuNode-视频参数",
+    "description": "视频制作参数设计节点，包含运镜方式、光线描述、视觉与后期效果",
+    "inputs": {
+      "运镜方式": {
+        "name": "运镜方式",
+        "tooltip": "选择摄像机运镜方式"
+      },
+      "光线描述": {
+        "name": "光线描述",
+        "tooltip": "选择光线类型和描述"
+      },
+      "视觉与后期效果": {
+        "name": "视觉与后期效果",
+        "tooltip": "选择视觉效果和后期处理"
+      }
+    }
+  }
+}

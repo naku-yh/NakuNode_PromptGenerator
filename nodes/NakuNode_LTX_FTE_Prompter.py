@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+NakuNode - LTX First and Tail End Prompter
+Modified to match PromptEVO API logic (SiliconFlow/Custom)
+Note: Original system prompt preserved, PRO_OPTIONS removed
+Added VideoPrompt.js frontend support
+"""
 import random
 import json
 import time
@@ -6,7 +12,6 @@ from PIL import Image
 import io
 import base64
 
-# 尝试导入必要的库，如果失败则在调用时抛出更友好的错误
 try:
     import requests
 except ImportError:
@@ -18,113 +23,47 @@ except ImportError:
     jwt = None
 
 
-# =================================================================================
-# == 专业视频提示词选项库 (Pro-V1) ==
-# =================================================================================
-PRO_OPTIONS = {
-    "艺术风格": [
-        "随机", "无", "超现实主义", "印象派", "赛博朋克", "蒸汽朋克", "日本浮世绘", "动漫风格", "黏土动画",
-        "像素艺术", "卡通渲染", "图形小说风格", "水墨画", "装饰艺术", "哥特式风格", "巴洛克风格",
-        "未来主义", "蒸汽波", "低多边形", "故障艺术", "概念艺术", "极简主义", "技术原理图",
-        "手绘素描", "油画质感"
-    ],
-    "景别": [
-        "随机", "无", "远景", "大远景", "全景", "中全景", "牛仔景", "中景", "中近景",
-        "近景", "大特写", "特写", "插入镜头", "反应镜头", "双人镜头", "三人镜头", "群体镜头",
-        "建置镜头", "细节镜头", "单人镜头", "宏观镜头", "定场镜头", "环境肖像", "全景风光",
-        "航拍远景"
-    ],
-    "相机角度": [
-        "随机", "无", "平视角度", "高角度", "低角度", "鸟瞰视角", "仰视视角", "荷兰角/斜角",
-        "过肩视角", "主观视角 (POV)", "侧面视角", "正面视角", "背面视角", "臀部高度视角",
-        "地面高度视角", "膝盖高度视角", "上帝视角", "倾斜视角", "镜像反射视角", "锁定视角",
-        "广角畸变视角", "望远镜视角", "显微镜视角", "门框窥视视角", "仪表盘视角"
-    ],
-    "移动与运镜": [
-        "随机", "无", "平摇", "俯仰", "推轨", "拉轨", "滑动变焦", "横向滑动", "升降", "手持拍摄",
-        "斯坦尼康", "无人机航拍", "第一人称穿越机 (FPV)", "弧形运镜", "旋转镜头 (Roll)",
-        "跟拍", "变焦", "快速推近", "环绕拍摄", "探索性运镜", "固定镜头", "摇臂镜头",
-
-        "穿梭镜头", "身体摄像头", "慢速推轨"
-    ],
-    "透镜与焦点": [
-        "随机", "无", "浅景深", "深景深", "焦点转移", "广角镜头", "长焦镜头", "标准镜头", "鱼眼镜头",
-        "变形宽银幕镜头", "微距镜头", "移轴镜头", "柔焦效果", "锐利对焦", "失焦模糊 (散景)",
-        "针孔效果", "分焦镜效果", "镜头呼吸效应", "红外镜头", "紫外镜头", "热成像镜头",
-        "自定义散景形状", "前景模糊", "背景模糊", "全景深"
-    ],
-    "光线与照明": [
-        "随机", "无", "三点布光", "伦勃朗光", "蝴蝶光", "环形光", "分割光", "硬光", "柔光",
-        "高调布光", "低调布光", "边缘光", "剪影", "体积光", "耶稣光/曙光", "霓虹灯光",
-        "自然光", "黄金时刻", "蓝色时刻", "神奇时刻", "环境光", "顶光", "底光", "烛光", "频闪光"
-    ],
-    "色彩与色调": [
-        "随机", "无", "单色", "互补色", "类似色", "三色系", "饱和度高", "饱和度低/褪色", "暖色调",
-        "冷色调", "电影感青橙色调", "漂白效果", "交叉冲洗", "复古胶片色", "LOMO 风格",
-        "高对比度", "低对比度", "粉彩色调", "双色调", "红外色彩", "选择性色彩", "霓虹色谱",
-        "赛璐珞动画色", "暗调/黑色电影", "明亮鲜活"
-    ],
-    "材质与质感": [
-        "随机", "无", "抛光金属", "生锈金属", "碳纤维", "粗糙木材", "光滑玻璃", "磨砂玻璃",
-        "半透明水晶", "粗糙混凝土", "光滑大理石", "柔软织物", "皮革质感", "液体质感",
-        "全息显示", "哑光表面", "高光泽表面", "丝绸质感", "多毛/毛茸茸", "鳞片质感",
-        "生物发光", "粘液质感", "折纸质感", "陶瓷质感", "腐朽/风化"
-    ],
-    "视觉与后期效果": [
-        "随机", "无", "镜头光晕", "动态模糊", "色差", "光线溢出/辉光", "电影颗粒", "暗角",
-        "光泄露", "故障/数据损坏", "延时摄影", "慢动作", "粒子效果 (火花/尘埃)", "烟雾/薄雾",
-        "HUD/UI 界面叠加", "全息投影", "像素化", "热浪扭曲", "水下扭曲", "定格动画",
-        "光绘/光迹", "倒放效果", "万花筒效果", "鱼眼畸变", "扫描线/CRT 效果"
-    ]
-}
-
-# SiliconFlow 模型映射
-SILICONFLOW_MODELS = {
-    "QWENVL": "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "GLM": "zai-org/GLM-4.6V",
-    "KIMI": "Pro/moonshotai/Kimi-K2.5"
-}
-
-
 class NakuNode_LTX_FTE_Prompter:
     """
-    LTX 视频提示词生成器 - 基于两张图片和描述生成 LTX Video 专用提示词 (FTE = First and Tail End)
+    LTX 视频提示词生成器 - 基于首尾帧图片和描述生成 LTX Video 专用提示词
+    Modified to use SiliconFlow/Custom API providers (same as PromptEVO)
+    Note: PRO_OPTIONS removed, use VideoPrompt.js frontend instead
     """
 
     @classmethod
     def INPUT_TYPES(s):
-        # 创建 AI服务商列表
-        provider_list = ["智谱 AI", "硅基流动"]
+        # Create AI provider list - SiliconFlow and Custom (same as PromptEVO)
+        provider_list = ["SiliconFlow", "Custom"]
 
         inputs = {
             "required": {
-                "首帧图片": ("IMAGE", {}),
-                "尾帧图片": ("IMAGE", {}),
-                "视频时长": ("INT", {"default": 5, "min": 1, "max": 20}),
-                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在阳光下玩耍"}),
-                "AI服务商": (provider_list,),
-                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的 API 密钥或令牌"}),
-                "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+                "First_Frame_Image": ("IMAGE", {}),
+                "Last_Frame_Image": ("IMAGE", {}),
+                "Video_Duration": ("INT", {"default": 5, "min": 1, "max": 20}),
+                "User_Description": ("STRING", {"multiline": True, "default": "A cute cat playing in the sunlight"}),
+                "api_provider": (provider_list, {"default": "SiliconFlow"}),
+                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+            },
+            "optional": {
+                # SiliconFlow API settings
+                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "Please enter SiliconFlow API Key"}),
+                "siliconflow_model": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),
+                # Custom API settings
+                "User_API_KEY": ("STRING", {"multiline": False, "default": "Please enter your API Key"}),
+                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
+                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
             }
-        }
-
-        # 动态添加所有专业选项分类，并设默认为"无"
-        for category, options_list in PRO_OPTIONS.items():
-            inputs["required"][category] = (options_list, {"default": "无"})
-
-        inputs["optional"] = {
-            "硅基流动模型选择": (["QWENVL", "GLM", "KIMI"], {"default": "QWENVL"}),  # 仅在选择硅基流动时使用
         }
 
         return inputs
 
-    RETURN_TYPES = ("STRING", "STRING")  # AI 生成提示词，初始提示词
-    RETURN_NAMES = ("AI 生成提示词", "初始提示词")
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("AI Generated Prompt", "Initial Prompt")
     FUNCTION = "generate_ltx_prompt"
-    CATEGORY = "NakuNode/提示词生成"
+    CATEGORY = "NakuNode/LTX Video"
 
     def tensor_to_base64(self, image_tensor):
-        """将张量转换为 base64 编码的图片"""
+        """Convert tensor to base64 encoded image - Same as DualImageVideoScriptGenerator (2560px max)"""
         if image_tensor is None:
             return None
 
@@ -134,15 +73,15 @@ class NakuNode_LTX_FTE_Prompter:
             print("[NakuNode LTX_FTE_Prompter] Warning: numpy is not installed.")
             return None
 
-        # 转换张量到 numpy 数组并确保值在正确范围内
+        # Convert tensor to numpy array and ensure values are in correct range
         i = 255. * image_tensor.cpu().numpy()
         img_array = np.clip(i, 0, 255).astype(np.uint8)
 
-        # 如果是批次图片，选择第一个
+        # If batched image, select the first one
         if len(img_array.shape) == 4:
             img_array = img_array[0]
 
-        # 如果有通道维度，确保顺序正确
+        # If has channel dimension, ensure order is correct
         if img_array.shape[-1] == 3 or img_array.shape[-1] == 4:  # RGB or RGBA
             img = Image.fromarray(img_array)
         elif img_array.shape[0] == 3 or img_array.shape[0] == 4:  # Channel-first format
@@ -150,8 +89,8 @@ class NakuNode_LTX_FTE_Prompter:
         else:
             img = Image.fromarray(img_array)
 
-        # 调整图片大小以避免 API 错误
-        MAX_DIMENSION = 1920
+        # Check if long edge exceeds 2560px, if so, resize using Lanczos
+        MAX_DIMENSION = 2560
         if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
             aspect_ratio = img.width / img.height
             if img.width > img.height:
@@ -161,39 +100,17 @@ class NakuNode_LTX_FTE_Prompter:
                 new_height = MAX_DIMENSION
                 new_width = int(MAX_DIMENSION * aspect_ratio)
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"[NakuNode LTX_FTE_Prompter] Image resized to {img.width}x{img.height} to prevent API errors.")
+            print(f"[NakuNode LTX_FTE_Prompter] Image resized to {img.width}x{img.height} using Lanczos resampling.")
 
-        # 将图片保存到内存中的缓冲区
+        # Save image to memory buffer
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
         return img_str
 
-    def generate_zhipu_token(self, apikey: str):
-        if not jwt:
-            raise ImportError("pyjwt 库缺失。请在您的 ComfyUI 环境中运行 'pip install pyjwt' 来安装。")
-
-        try:
-            id, secret = apikey.split('.')
-        except Exception as e:
-            raise ValueError("无效的智谱 API Key，格式应为 'id.secret'", e)
-
-        payload = {
-            "api_key": id,
-            "exp": int(round(time.time() * 1000)) + 60 * 60 * 1000,
-            "timestamp": int(round(time.time() * 1000)),
-        }
-
-        return jwt.encode(
-            payload,
-            secret,
-            algorithm="HS256",
-            headers={"alg": "HS256", "sign_type": "SIGN"},
-        )
-
-    def call_llm_api(self, provider, api_key, prompt, first_image_base64, tail_image_base64, siliconflow_model_choice="QWENVL", duration_seconds=5):
-        # LTX-2 音视频同步生成系统提示词
-        system_prompt = '''# Role
+    def get_system_prompt(self):
+        """Get the original LTX-2 system prompt - DO NOT MODIFY"""
+        return '''# Role
 你是**LTX-2 音视频提示词引擎**。将输入（纯文本 / 图像 + 文字 / 纯图像）转化为**音视频同步生成**的完整提示词，支持 LTX-2 模型的原生音视频对齐能力，确保画面、声音、配乐、对话四轨协同，音画同步率达到 95% 以上。
 
 **LTX-2 模型特性**：
@@ -221,7 +138,7 @@ class NakuNode_LTX_FTE_Prompter:
 **输入方式**：
 1. **时长参数**（系统设定）：范围 0-20 秒，默认 5 秒，用户可配置修改
 2. 纯文本输入
-3. 图像 + 文字输入  
+3. 图像 + 文字输入
 4. 纯图像输入
 
 **输出格式**：多轨道 JSON 结构
@@ -447,7 +364,7 @@ class NakuNode_LTX_FTE_Prompter:
 **史诗大气**：管风琴、铜管乐、弦乐渐强
 **浪漫温柔**：钢琴、竖琴、弦乐
 **悲伤失落**：单簧管、钢琴独奏
-**动作冲击**：电子合成器、强烈鼓点
+**动作冲击**：电子合成器 + 强烈鼓点
 **恐怖惊悚**：高频噪音、脚步声
 
 ### 第八步：生成音画同步说明
@@ -634,112 +551,189 @@ class NakuNode_LTX_FTE_Prompter:
   "sync_notes": 轮胎冒烟与白烟视觉同步，过弯与音乐高潮同步
 }'''
 
-        if not requests:
-            raise ImportError("requests 库缺失。请在您的 ComfyUI 环境中运行 'pip install requests' 来安装。")
+    def generate_ltx_prompt(self, First_Frame_Image, Last_Frame_Image, Video_Duration, User_Description, api_provider, random_seed,
+                            SiliconFlow_API_KEY="", siliconflow_model="Qwen3",
+                            User_API_KEY="", custom_url="https://api.siliconflow.cn/v1",
+                            custom_model="gpt_5.2", **kwargs):
+        # Set random seed
+        if random_seed == -1:
+            random_seed = random.randint(0, 0xffffffffffffffff)
+        random.seed(random_seed)
 
-        headers = {"Content-Type": "application/json"}
+        # User description directly from input (no PRO_OPTIONS)
+        full_description = User_Description
 
-        if not api_key or api_key == "必须填入智谱/硅基流动的 API":
-            raise ValueError(f"使用「{provider}」服务商时，请在 API_KEY 字段中填入您的 API 密钥。")
-
-        # 将时长信息添加到用户提示中
-        prompt_with_duration = f"{prompt} (视频时长要求:{duration_seconds}秒)"
-
-        if provider == "智谱 AI":
-            token = self.generate_zhipu_token(api_key)
-            headers["Authorization"] = token
-            # 构建消息，包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和首尾帧图片，生成 LTX-2 音视频同步提示词：{prompt_with_duration}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{first_image_base64}"}},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{tail_image_base64}"}}
-                ]}
-            ]
-            payload = {"model": "glm-4v-plus", "messages": messages, "stream": False}
-            api_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
-        elif provider == "硅基流动":
-            headers["Authorization"] = f"Bearer {api_key}"
-            # 构建消息，包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"根据以下用户描述和首尾帧图片，生成 LTX-2 音视频同步提示词：{prompt_with_duration}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{first_image_base64}"}},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{tail_image_base64}"}}
-                ]}
-            ]
-            # 根据用户选择的硅基流动模型选择对应的模型
-            model = SILICONFLOW_MODELS.get(siliconflow_model_choice, "Qwen/Qwen-VL-Chat")  # 默认为 QwenVL
-            payload = {"messages": messages, "model": model, "stream": False}
-            api_url = "https://api.siliconflow.cn/v1/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
-        return prompt
-
-    def generate_ltx_prompt(self, 首帧图片,尾帧图片,视频时长,用户描述,AI服务商,API_KEY,随机种子,硅基流动模型选择="QWENVL", **kwargs):
-        # 设置随机种子
-        if 随机种子 == -1:
-            随机种子 = random.randint(0, 0xffffffffffffffff)
-        random.seed(随机种子)
-
-        # 将专业选项融合到用户描述后面，使用逗号分隔
-        parts = [用户描述]
-        for category, options_list in PRO_OPTIONS.items():
-            selected = kwargs.get(category)
-
-            if selected == "无":
-                continue
-            elif selected == "随机":
-                # 从选项列表中排除"随机"和"无"
-                valid_options = [opt for opt in options_list if opt not in ["随机", "无"]]
-                if valid_options:
-                    chosen = random.choice(valid_options)
-                    parts.append(chosen)
-            else:
-                parts.append(selected)
-
-        full_description = "，".join(filter(None, parts))
-
-        # 将图片转换为 base64
-        first_image_base64 = self.tensor_to_base64(首帧图片)
-        tail_image_base64 = self.tensor_to_base64(尾帧图片)
+        # Convert images to base64
+        first_image_base64 = self.tensor_to_base64(First_Frame_Image)
+        tail_image_base64 = self.tensor_to_base64(Last_Frame_Image)
 
         if not first_image_base64:
-            raise ValueError("无法处理输入的首帧图片")
+            raise ValueError("Cannot process first frame image")
         if not tail_image_base64:
-            raise ValueError("无法处理输入的尾帧图片")
+            raise ValueError("Cannot process last frame image")
 
-        # 构建请求
-        full_prompt = f"用户描述：{full_description}"
+        # Build request
+        full_prompt = f"User Description: {full_description}"
 
         try:
-            print(f"[NakuNode LTX_FTE_Prompter] Generating LTX prompt with {AI服务商}, duration: {视频时长}s...")
-            # 如果是硅基流动服务商，传递模型选择和时长
-            if AI服务商 == "硅基流动":
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, first_image_base64, tail_image_base64, 硅基流动模型选择, 视频时长)
+            # Select API settings based on provider
+            if api_provider == "SiliconFlow":
+                api_key = SiliconFlow_API_KEY
             else:
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, first_image_base64, tail_image_base64, 硅基流动模型选择, 视频时长)
-            print(f"[NakuNode LTX_FTE_Prompter] Generated response: {optimized_response}")
+                api_key = User_API_KEY
 
-            # 返回结果 (AI 生成提示词，初始提示词)
+            # Check if API key is provided
+            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key"]:
+                print(f"[NakuNode LTX_FTE_Prompter] API key not provided, returning user prompt directly")
+                return (full_description, full_description)
+
+            print(f"\n[NakuNode LTX_FTE_Prompter] {'='*60}")
+            print(f"[NakuNode LTX_FTE_Prompter] Starting request - API Provider: {api_provider}")
+            print(f"[NakuNode LTX_FTE_Prompter] {'='*60}")
+            print(f"[NakuNode LTX_FTE_Prompter] User Description: {full_description[:100]}...")
+            print(f"[NakuNode LTX_FTE_Prompter] Video Duration: {Video_Duration} seconds")
+
+            # SiliconFlow model mapping (same as PromptEVO)
+            model_mapping = {
+                "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
+                "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+                "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
+                "GLM": "Pro/zai-org/GLM-4.7",
+                "KIMI": "Pro/moonshotai/Kimi-K2.5"
+            }
+
+            # Custom API model mapping
+            custom_model_mapping = {
+                "gpt_5.2": "gpt-5.2",
+                "gemini_3.1": "gemini-3.1-pro-preview",
+                "Qwen_3.5": "qwen3.5-plus",
+                "Kimi_2.5": "kimi-k2.5"
+            }
+
+            # Select model and print info based on API provider
+            if api_provider == "Custom":
+                selected_model = custom_model_mapping.get(custom_model, "gpt-5.2")
+                api_url = custom_url.rstrip('/')
+                use_stream = False
+                print(f"[NakuNode LTX_FTE_Prompter] Using Custom API")
+                print(f"[NakuNode LTX_FTE_Prompter] Custom API URL: {custom_url}")
+                print(f"[NakuNode LTX_FTE_Prompter] Using Custom API model: {selected_model}")
+            else:
+                selected_model = model_mapping.get(siliconflow_model, "Pro/zai-org/GLM-4.7")
+                api_url = "https://api.siliconflow.cn/v1/chat/completions"
+                use_stream = True
+                print(f"[NakuNode LTX_FTE_Prompter] Using SiliconFlow API")
+                print(f"[NakuNode LTX_FTE_Prompter] SiliconFlow URL: https://api.siliconflow.cn/v1/chat/completions")
+                print(f"[NakuNode LTX_FTE_Prompter] Using SiliconFlow model: {selected_model}")
+
+            print(f"[NakuNode LTX_FTE_Prompter] Generating LTX prompt with {api_provider}...")
+
+            # Call API using requests library
+            headers = {
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
+
+            # Build complete API URL for Custom
+            if api_provider == "Custom" and not api_url.endswith('/v1/chat/completions'):
+                api_url = api_url + '/v1/chat/completions'
+
+            print(f"[NakuNode LTX_FTE_Prompter] Request URL: {api_url}")
+            print(f"[NakuNode LTX_FTE_Prompter] Stream mode: {use_stream}")
+
+            # Build messages with two images - using original system prompt
+            messages = [
+                {"role": "system", "content": self.get_system_prompt()},
+                {"role": "user", "content": [
+                    {"type": "text", "text": f"根据以下用户描述和首尾帧图片，生成 LTX-2 音视频同步提示词。视频时长要求：{Video_Duration}秒。{full_prompt}"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{first_image_base64}"}},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{tail_image_base64}"}}
+                ]}
+            ]
+
+            payload = {
+                "model": selected_model,
+                "messages": messages,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "n": 1,
+                "stream": use_stream,
+                "max_tokens": 4096
+            }
+
+            print(f"[NakuNode LTX_FTE_Prompter] Sending request...")
+
+            if use_stream:
+                # SiliconFlow stream mode
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=180)
+                print(f"[NakuNode LTX_FTE_Prompter] HTTP status code: {response.status_code}")
+
+                if response.status_code == 200:
+                    print(f"[NakuNode LTX_FTE_Prompter] API call successful")
+                    full_content = ""
+                    for chunk in response.iter_lines():
+                        if chunk:
+                            chunk_str = chunk.decode('utf-8').replace('data: ', '')
+                            if chunk_str != "[DONE]" and chunk_str.strip():
+                                try:
+                                    chunk_data = json.loads(chunk_str)
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                    if content:
+                                        full_content += content
+                                except json.JSONDecodeError:
+                                    continue
+                    print(f"[NakuNode LTX_FTE_Prompter] Stream response received, length: {len(full_content)}")
+                    optimized_response = full_content
+                else:
+                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                    print(error_msg)
+                    return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+            else:
+                # Custom API non-stream mode
+                response = requests.post(api_url, headers=headers, json=payload, timeout=180)
+                print(f"[NakuNode LTX_FTE_Prompter] HTTP status code: {response.status_code}")
+
+                if response.status_code == 200:
+                    print(f"[NakuNode LTX_FTE_Prompter] API call successful")
+                    response_data = response.json()
+
+                    # Parse response
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        optimized_response = response_data['choices'][0]['message']['content']
+                        print(f"[NakuNode LTX_FTE_Prompter] API response: {optimized_response[:100]}...")
+                    else:
+                        error_msg = f"API response format error: {response_data}"
+                        print(error_msg)
+                        return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                else:
+                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                    print(error_msg)
+                    return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+
+            print(f"[NakuNode LTX_FTE_Prompter] Generated response received")
+
+            # Return result (AI Generated Prompt, Initial Prompt)
             return (optimized_response, full_description)
+        except requests.exceptions.Timeout:
+            error_msg = "API request timeout"
+            print(error_msg)
+            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+        except requests.exceptions.RequestException as e:
+            error_msg = f"HTTP request failed: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
         except Exception as e:
-            print(f"[NakuNode LTX_FTE_Prompter] Error during LLM processing: {e}")
-            # 发生错误时返回融合后的描述
-            return (f"处理错误：{e}. 原始描述：{full_description}", f"Processing Error: {e}. Original: {full_description}")
+            print(f"[NakuNode LTX_FTE_Prompter] Error during API call: {e}")
+            import traceback
+            traceback.print_exc()
+            return (f"Error: {str(e)}. Original: {full_description}", f"Error: {str(e)}")
 
 
-# --- 注册节点到 ComfyUI ---
+# --- Register node to ComfyUI ---
 NODE_CLASS_MAPPINGS = {
     "NakuNode_LTX_FTE_Prompter": NakuNode_LTX_FTE_Prompter
 }

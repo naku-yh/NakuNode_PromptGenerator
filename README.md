@@ -1,139 +1,251 @@
-# NakuNode-Prompter
+# NakuNode Prompter V1.0
 
-**NakuNode Prompt Generator V1.16 Dev**
-**A professional prompt generator for WAN / Qwen / Flux / LTX**
+<div align="center">
 
-A comprehensive ComfyUI node pack that integrates multiple prompt generation and guidance systems for AI image and video generation.
+**专业的 AI 提示词生成工具 | Professional AI Prompt Generation Tool for ComfyUI**
 
-## Features
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/naku-yh/NakuNode_PromptGenerator)
+[![ComfyUI](https://img.shields.io/badge/ComfyUI-Custom%20Nodes-green)](https://github.com/comfyanonymous/ComfyUI)
+[![License](https://img.shields.io/badge/License-MIT-orange)](LICENSE)
 
-- **Advanced Prompt Generation** - Professional prompt generation with AI-powered enhancement
-- **API Integration** - Support for SiliconFlow and Custom API services
-- **Comprehensive Parameter Controls** - Extensive parameterized prompt generation with portrait, photography, environment, and scene controls
-- **Advanced Guidance** - Normalized Attention Guidance (NAG) and Noise Added Guidance methods
-- **Multi-Modal Support** - Support for image-based prompt generation and optimization
-- **LTX Video Optimization** - Specialized prompt engineering for LTX Video model
-- **Storyboard Generation** - Multi-image storyboard prompt generation with Hollywood cinematography grammar
+</div>
 
-## Included Nodes
+---
 
-### Advanced Prompt Generators
-- **NakuNode-PromptEVO** - Advanced prompt generator with AI model selection (Qwen/Zimage, Flux.2) and API integration
-  - Supports SiliconFlow and Custom API services
-  - Comprehensive character controls (nationality, gender, age, body type, clothing, expressions, hairstyles, hair colors)
-  - Photography parameters (camera angles, lenses, film types, color palettes, compositions)
-  - Detailed debugging information
+## 📖 简介 | Introduction
 
-### Video Prompt Generators
-- **NakuNode 专业视频提示词润色器** - Professional video prompt polisher with multiple categories (art styles, camera angles, lighting, etc.)
-- **NakuNode-单图视频提示词生成器** - Generate video prompts from single image with LLM optimization
-- **NakuNode-首尾帧视频提示词生成器** - Generate video scripts from start/end frame images
+**NakuNode Prompter** 是一款专为 ComfyUI 设计的专业提示词生成工具集，集成了多种 AI 提示词生成和优化功能。支持 SiliconFlow 和 Custom API 服务，可生成高质量的文生图、视频生成提示词。
 
-### Storyboard Generator
-- **NakuNode 分镜图片生成** - Multi-image storyboard generator with Hollywood cinematography grammar
-  - Supports up to 6 reference images
-  - Universal Fluid Structure for camera movement (9 lens templates)
-  - Special handling for single-image and multi-image scenarios
-  - Compact output format with zero blank lines
+**NakuNode Prompter** is a professional prompt generation toolset designed for ComfyUI, integrating multiple AI prompt generation and optimization features. Supports SiliconFlow and Custom API services for generating high-quality text-to-image and video generation prompts.
 
-### LTX Video Prompt Generator
-- **NakuNode-LTXPrompter** - Specialized prompt generator for LTX Video model (Text-to-Video / Image-to-Video)
-  - Optimized for LTX Video's DiT architecture and T5 text encoder
-  - Focuses on temporal continuity and physical interactions
-  - Uses professional cinematography terminology
-  - Generates flowing English paragraphs instead of tag lists
+### ✨ 主要特性 | Key Features
 
-- **NakuNode LTX FTE Prompter** - LTX First-and-Tail-End prompt generator
-  - Generate LTX prompts from first and last frame images
-  - Supports video duration setting (1-20 seconds)
-  - Audio-video synchronization support
+- 🎨 **多模态提示词生成** - 支持文生图、图生视频等多种生成模式
+- 🎬 **专业视频提示词** - 专为 LTX Video 等视频模型优化的提示词生成
+- 🤖 **AI 智能优化** - 集成 SiliconFlow/Custom API，智能润色提示词
+- 🌐 **双语支持** - 完整的中英文界面和提示词输出
+- 🎯 **可视化构建器** - 通过前端界面快速构建专业提示词
+- 📸 **多图参考** - 支持单图、双图、多图等多种参考模式
 
-### Guidance Systems
-- NakuNode NAG Applier (Attention) - Normalized Attention Guidance
-- NakuNode Noise Guider (Original Nunchaku) - Noise Added Guidance
+---
 
-### Design Prompt Tools (NakuNode_Design_Prompt)
-- **NakuNode_人设设计** - Comprehensive human characteristic controls
-  - 16 parameter categories: nationality, skin color, gender, age, body type, clothing, face shape, eye type, eye color, expression, nose type, lip shape, hairstyle, hair color, skin texture
-  - Random option for each category
-- **NakuNode_摄影参数** - Camera, lens, film, and composition controls
-  - 6 parameter categories: style, camera angle, lens, aperture, film type, composition
-  - Random option for each category
-- **NakuNode_场景设计** - Environment scene presets
-  - 2 categories: Outdoor Scenes (52 options), Indoor Scenes (62 options)
-  - Random option for each category
+## 📦 节点列表 | Node List
 
-### Video Prompt Tools
-- **NakuNode 专业视频提示词生成器** - Generate video prompts using professional options (art styles, camera angles, lighting, etc.)
-- **NakuNode-单图视频提示词优化器** - Optimize video prompts based on input images
+### 🎨 提示词生成节点 | Prompt Generation Nodes
 
-### Utility Nodes
-- **NakuNode-文本修改节点** - Text editing utility for modifying prompts
-- **NakuNode-ImagePrompter** - Image-based prompt generation with AI services
-  - Supports SiliconFlow and Custom API
-  - Generates objective image descriptions with structured format
+#### 1. NakuNode-提示词进化器 | NakuNode-PromptEVO
+**功能**: 图片提示词优化，支持 Qwen/Zimage 和 Flux.2 模型  
+**Function**: Advanced text prompt generator supporting Qwen/Zimage and Flux.2 models
 
-## Installation
+- 支持 SiliconFlow 和 Custom API 服务
+-  comprehensive 人物和摄影参数控制
+- 详细的调试信息输出
 
-1. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+#### 2. NakuNode-单图视频提示词生成器 | ImageVideoPromptOptimizer
+**功能**: 基于单张图片生成专业的视频提示词 For Wan2.2  
+**Function**: Generate professional video prompts from a single image
 
-   Note: Make sure to install additional dependencies for API services:
-   ```bash
-   pip install openai requests pillow
-   ```
+- 自动图像缩放,无需额外增加图片缩放节点，保持图片清晰且不会过大
+- SiliconFlow/Custom API 集成
+- 输出中英文双语提示词
 
-2. Place this folder in your ComfyUI `custom_nodes` directory.
+#### 3. NakuNode-首尾帧视频提示词生成器 | DualImageVideoScriptGenerator
+**功能**: 基于首尾两张图片生成连贯的视频画面生成  
+**Function**: Generate coherent video storyboards from start and end frames
 
-3. Restart ComfyUI.
+- 可自定义视频时长（1-60 秒）
+- 专业的分镜画面生成
 
-## Usage
+#### 4. NakuNode-专业视频提示词润色器 | ProfessionalVideoPromptGenerator
+**功能**: 专业的视频提示词润色工具  
+**Function**: Professional video prompt polishing tool
 
-The nodes will appear in ComfyUI under the "NakuNode" category.
+- 生成中文和英文两个版本
+- 基于通义万相视频提示词公式
+- 支持 SiliconFlow/Custom API
 
-### Using NakuNode-PromptEVO
-1. Select your preferred AI model (Qwen/Zimage or Flux.2)
-2. Choose API provider (SiliconFlow or Custom) and provide API key
-3. Fill in your text requirements
-4. Adjust character and photography parameters as needed
-5. The node will generate enhanced prompts using AI services
+### 🎬 LTX Video 专用节点 | LTX Video Specialized Nodes
 
-### Using NakuNode 分镜图片生成
-1. Connect 1-6 reference images
-2. Fill in storyboard description
-3. Set storyboard count (1-12)
-4. Choose API provider and provide API key
-5. The node will generate continuous storyboard prompts with Hollywood cinematography grammar
+#### 5. NakuNode-LTX 视频提示词生成器 | NakuNode-LTXPrompter
+**功能**: 专为 LTX Video 模型设计的提示词生成器  
+**Function**: Prompt generator designed for LTX Video model
 
-## API Configuration
+- 支持文生视频和图生视频两种模式
+- 音视频同步提示词生成
+- 视频时长 1-20 秒可调
 
-### SiliconFlow
-- Register at https://siliconflow.cn/
-- Obtain your API key
-- Select SiliconFlow as the API provider in the node
-- Choose model: QWENVL (Qwen3-VL-30B), GLM (GLM-4.6V), or KIMI (Kimi-K2.5)
-- Uses streaming mode for API requests
+#### 6. NakuNode-LTX 首尾帧提示词生成器 | NakuNode-LTX_FTE_Prompter
+**功能**: 基于首尾帧图片生成 LTX Video 专用提示词  
+**Function**: Generate LTX Video prompts from first and last frame images
 
-### Custom API
-- For custom API endpoints compatible with OpenAI format
-- Provide your custom URL (default: https://api.siliconflow.cn/v1)
-- Choose model: gpt_5.2, gemini_3.1, Qwen_3.5, or Kimi_2.5
-- Uses non-streaming mode for API requests
+- 音视频同步生成支持
+- 专业的 LTX-2 系统提示词
+- 支持 VideoPrompt.js 前端构建
 
-## Version History
-- **V1.16 Dev**: 
-  - Added NakuNode_场景设计 (Environment Design) with 114 scene presets (52 outdoor + 62 indoor)
-  - Updated NakuNode_ImagePrompter with SiliconFlow/Custom API support and streaming mode
-  - Fixed API URL logic for SiliconFlow (now uses correct https://api.siliconflow.cn/v1/chat/completions)
-  - Added streaming mode support for SiliconFlow API (all nodes)
-  - Removed Zhipu AI support, replaced with Custom API option
-  - All node parameters converted to English (internal system prompts unchanged)
-  - Added comprehensive debug output with [NakuNode] prefix
-- **V1.15 Dev**: Updated API input image size limit to 1920px (longest edge)
-- **V1.10 Dev**: Updated version to 1.10 Dev
-- **V1.09 Dev**: Added NakuNode-LTXPrompter for LTX Video model with specialized prompt engineering
-- **V1.08 Dev**: Updated QwenEdit model prompt with advanced focus relay mechanism and fluid structure
-- **V1.05 Dev**: Added comprehensive character controls, API integration, and debugging features
-- **V1.0 Dev**: Initial release with basic prompt generation and guidance systems
+### 🖼️ 分镜与描述节点 | Storyboard & Description Nodes
+
+#### 7. NakuNode-分镜图片生成器 | StoryboardImageGenerator
+**功能**: 多图片分镜脚本生成器  
+**Function**: Multi-image storyboard script generator
+
+- 支持最多 6 张参考图片
+- 好莱坞电影语法体系
+- 紧凑输出格式（零空行）
+
+#### 8. NakuNode-图片描述生成器 | NakuNode-ImagePrompter
+**功能**: 基于图片生成客观的描述提示词  
+**Function**: Generate objective description prompts from images
+
+- 支持 SiliconFlow 和 Custom API
+- 结构化输出格式
+
+### 🛠️ 工具节点 | Utility Nodes
+
+#### 9. NakuNode-文本编辑节点 | NakuNodeTextEditor
+**功能**: 文本编辑工具节点  
+**Function**: Text editing utility node
+
+- 支持工作流中修改提示词
+- 持久化存储编辑内容
+
+#### 10. NakuNode-视频参数 | NakuNode_VideoParameters
+**功能**: 视频制作参数设计节点  
+**Function**: Video production parameter design node
+
+- 运镜方式选择
+- 光线描述选择
+- 视觉与后期效果选择
+
+---
+
+## 🔧 安装 | Installation
+
+### 方法： | Method : 
+
+```bash
+# 进入 ComfyUI 自定义节点目录
+cd ComfyUI/custom_nodes/
+
+# 克隆仓库
+git clone https://github.com/naku-yh/NakuNode_PromptGenerator.git
+
+# 安装依赖
+cd NakuNode_PromptGenerator
+pip install -r requirements.txt
+```
+
+---
+
+## 📖 使用指南 | Usage Guide
+
+### 基础使用 | Basic Usage
+
+1. **添加节点**: 在 ComfyUI 中右键 → NakuNode → 选择所需节点
+2. **配置 API**: 填写 SiliconFlow API Key 或 Custom API 配置
+3. **输入描述**: 在文本框中输入您的生成需求
+4. **生成提示词**: 执行节点获取 AI 优化的提示词
+
+**使用方法**:
+1. 点击节点上的 **"Create it!"** 按钮
+2. 在弹出的构建器界面中选择参数：
+   - 📷 摄影参数（画面风格、相机视角、镜头选择等）
+   - 🎬 视频参数（运镜方式、光线描述、视觉效果等）
+3. 点击"确认"，生成的提示词将自动填充到节点输入框
+
+### API 配置 | API Configuration
+
+#### SiliconFlow 配置
+1. 访问 https://siliconflow.cn/ 注册账号
+2. 获取 API Key
+3. 在节点中选择 "SiliconFlow" 作为 API 提供商
+4. 填写 API Key 并选择模型
+
+#### Custom API 配置
+1. 选择 "Custom" 作为 API 提供商
+2. 填写自定义 API 地址
+3. 填写自定义 API Key
+4. 选择对应的模型
+
+---
+
+## 📋 节点参数说明 | Node Parameters
+
+### 通用参数 | Common Parameters
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `api_provider` | API 提供商选择 | SiliconFlow |
+| `random_seed` | 随机种子（-1 为随机） | -1 |
+| `SiliconFlow_API_KEY` | SiliconFlow API 密钥 | - |
+| `User_API_KEY` | 自定义 API 密钥 | - |
+| `custom_url` | 自定义 API 地址 | - |
+
+### 模型选项 | Model Options
+
+#### SiliconFlow 模型
+- `KIMI-K2` - Moonshot AI Kimi K2
+- `Qwen3` - Qwen3-235B-A22B-Instruct
+- `DeepSeekV3` - DeepSeek V3.2
+- `GLM` - GLM-4.7
+- `KIMI` - Kimi K2.5
+
+#### Custom API 模型
+- `gpt_5.2` - GPT-5.2
+- `gemini_3.1` - Gemini 3.1 Pro
+- `Qwen_3.5` - Qwen3.5 Plus
+- `Kimi_2.5` - Kimi K2.5
+
+---
+
+## 🎯 应用场景 | Use Cases
+
+### 📸 人像摄影提示词生成
+使用 **NakuNode-提示词进化器**，通过人物设计和摄影参数快速生成专业人像摄影提示词。
+
+### 🎬 视频制作提示词
+使用 **NakuNode-单图/首尾帧视频提示词生成器**，基于参考图片生成专业的视频拍摄脚本。
+
+### 🤖 LTX Video 视频生成
+使用 **NakuNode-LTX 系列节点**，生成符合 LTX Video 模型要求的音视频同步提示词。
+
+### 📝 提示词润色优化
+使用 **NakuNode-专业视频提示词润色器**，将简单的描述润色为专业的提示词。
+
+---
+
+## 🔗 链接 | Links
+
+- **GitHub 仓库**: https://github.com/naku-yh/NakuNode_PromptGenerator
+- **ComfyUI**: https://github.com/comfyanonymous/ComfyUI
+- **SiliconFlow**: https://siliconflow.cn/
+
+---
+
+## 📝 更新日志 | Changelog
+
+### V1.0 - 初始版本 | Initial Release
+
+---
+
+## 📄 许可证 | License
+
+MIT License
+
+---
+
+## 🙏 致谢 | Acknowledgments
+
+感谢以下项目和团队：
+- ComfyUI 团队
+
+---
+
+<div align="center">
+
+**NakuNode Prompter V1.0**
+
+Made with ❤️ by Naku
+
+[返回顶部](#nakunode-prompter-v10)
+
+</div>

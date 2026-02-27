@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+NakuNode - LTX Prompter
+Modified to match PromptEVO API logic (SiliconFlow/Custom)
+Note: Original system prompt preserved, PRO_OPTIONS removed
+Added VideoPrompt.js frontend support
+"""
 import random
 import json
 import time
@@ -6,7 +12,6 @@ from PIL import Image
 import io
 import base64
 
-# 尝試導入必要的庫，如果失敗則在調用時拋出更友好的錯誤
 try:
     import requests
 except ImportError:
@@ -18,114 +23,47 @@ except ImportError:
     jwt = None
 
 
-# =================================================================================
-# == 专业视频提示词选项库 (Pro-V1) ==
-# =================================================================================
-PRO_OPTIONS = {
-    "艺术风格": [
-        "随机", "无", "超现实主义", "印象派", "赛博朋克", "蒸汽朋克", "日本浮世绘", "动漫风格", "黏土动画",
-        "像素艺术", "卡通渲染", "图形小说风格", "水墨画", "装饰艺术", "哥特式风格", "巴洛克风格",
-        "未来主义", "蒸汽波", "低多边形", "故障艺术", "概念艺术", "极简主义", "技术原理图",
-        "手绘素描", "油画质感"
-    ],
-    "景别": [
-        "随机", "无", "远景", "大远景", "全景", "中全景", "牛仔景", "中景", "中近景",
-        "近景", "大特写", "特写", "插入镜头", "反应镜头", "双人镜头", "三人镜头", "群体镜头",
-        "建置镜头", "细节镜头", "单人镜头", "宏观镜头", "定场镜头", "环境肖像", "全景风光",
-        "航拍远景"
-    ],
-    "相机角度": [
-        "随机", "无", "平视角度", "高角度", "低角度", "鸟瞰视角", "仰视视角", "荷兰角/斜角",
-        "过肩视角", "主观视角(POV)", "侧面视角", "正面视角", "背面视角", "臀部高度视角",
-        "地面高度视角", "膝盖高度视角", "上帝视角", "倾斜视角", "镜像反射视角", "锁定视角",
-        "广角畸变视角", "望远镜视角", "显微镜视角", "门框窥视视角", "仪表盘视角"
-    ],
-    "移动与运镜": [
-        "随机", "无", "平摇", "俯仰", "推轨", "拉轨", "滑动变焦", "横向滑动", "升降", "手持拍摄",
-        "斯坦尼康", "无人机航拍", "第一人称穿越机(FPV)", "弧形运镜", "旋转镜头(Roll)",
-        "跟拍", "变焦", "快速推近", "环绕拍摄", "探索性运镜", "固定镜头", "摇臂镜头",
-
-        "穿梭镜头", "身体摄像头", "慢速推轨"
-    ],
-    "透镜与焦点": [
-        "随机", "无", "浅景深", "深景深", "焦点转移", "广角镜头", "长焦镜头", "标准镜头", "鱼眼镜头",
-        "变形宽银幕镜头", "微距镜头", "移轴镜头", "柔焦效果", "锐利对焦", "失焦模糊(散景)",
-        "针孔效果", "分焦镜效果", "镜头呼吸效应", "红外镜头", "紫外镜头", "热成像镜头",
-        "自定义散景形状", "前景模糊", "背景模糊", "全景深"
-    ],
-    "光线与照明": [
-        "随机", "无", "三点布光", "伦勃朗光", "蝴蝶光", "环形光", "分割光", "硬光", "柔光",
-        "高调布光", "低调布光", "边缘光", "剪影", "体积光", "耶稣光/曙光", "霓虹灯光",
-        "自然光", "黄金时刻", "蓝色时刻", "神奇时刻", "环境光", "顶光", "底光", "烛光", "频闪光"
-    ],
-    "色彩与色调": [
-        "随机", "无", "单色", "互补色", "类似色", "三色系", "饱和度高", "饱和度低/褪色", "暖色调",
-        "冷色调", "电影感青橙色调", "漂白效果", "交叉冲洗", "复古胶片色", "LOMO风格",
-        "高对比度", "低对比度", "粉彩色调", "双色调", "红外色彩", "选择性色彩", "霓虹色谱",
-        "赛璐珞动画色", "暗调/黑色电影", "明亮鲜活"
-    ],
-    "材质与质感": [
-        "随机", "无", "抛光金属", "生锈金属", "碳纤维", "粗糙木材", "光滑玻璃", "磨砂玻璃",
-        "半透明水晶", "粗糙混凝土", "光滑大理石", "柔软织物", "皮革质感", "液体质感",
-        "全息显示", "哑光表面", "高光泽表面", "丝绸质感", "多毛/毛茸茸", "鳞片质感",
-        "生物发光", "粘液质感", "折纸质感", "陶瓷质感", "腐朽/风化"
-    ],
-    "视觉与后期效果": [
-        "随机", "无", "镜头光晕", "动态模糊", "色差", "光线溢出/辉光", "电影颗粒", "暗角",
-        "光泄露", "故障/数据损坏", "延时摄影", "慢动作", "粒子效果(火花/尘埃)", "烟雾/薄雾",
-        "HUD/UI界面叠加", "全息投影", "像素化", "热浪扭曲", "水下扭曲", "定格动画",
-        "光绘/光迹", "倒放效果", "万花筒效果", "鱼眼畸变", "扫描线/CRT效果"
-    ]
-}
-
-# SiliconFlow 模型映射
-SILICONFLOW_MODELS = {
-    "QWENVL": "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "GLM": "zai-org/GLM-4.6V",
-    "GLM4.7": "Pro/zai-org/GLM-4.7",
-    "KIMI": "Pro/moonshotai/Kimi-K2.5"
-}
-
-
 class NakuNodeLTXPrompter:
     """
-    LTX视频提示词生成器 - 基于图片和描述生成LTX Video专用提示词
+    LTX 视频提示词生成器 - 基于图片和描述生成 LTX Video 专用提示词
+    Modified to use SiliconFlow/Custom API providers (same as PromptEVO)
+    Note: PRO_OPTIONS removed, use VideoPrompt.js frontend instead
     """
 
     @classmethod
     def INPUT_TYPES(s):
-        # 创建AI服务商列表
-        provider_list = ["智谱AI", "硅基流动"]
+        # Create AI provider list - SiliconFlow and Custom (same as PromptEVO)
+        provider_list = ["SiliconFlow", "Custom"]
 
         inputs = {
             "required": {
-                "模式选择": (["文生视频", "图生视频"], {"default": "文生视频"}),
-                "视频时长_秒": ("INT", {"default": 5, "min": 1, "max": 20}),
-                "用户描述": ("STRING", {"multiline": True, "default": "一只可爱的小猫在阳光下玩耍"}),
-                "AI服务商": (provider_list,),
-                "API_KEY": ("STRING", {"multiline": False, "default": "请填写您的API密钥或令牌"}),
-                "随机种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+                "Mode_Select": (["Text_to_Video", "Image_to_Video"], {"default": "Text_to_Video"}),
+                "Video_Duration": ("INT", {"default": 5, "min": 1, "max": 20}),
+                "User_Description": ("STRING", {"multiline": True, "default": "A cute cat playing in the sunlight"}),
+                "api_provider": (provider_list, {"default": "SiliconFlow"}),
+                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+            },
+            "optional": {
+                "Input_Image": ("IMAGE", {}),  # Only used in Image_to_Video mode
+                # SiliconFlow API settings
+                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "Please enter SiliconFlow API Key"}),
+                "siliconflow_model": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),
+                # Custom API settings
+                "User_API_KEY": ("STRING", {"multiline": False, "default": "Please enter your API Key"}),
+                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
+                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
             }
-        }
-
-        # 动态添加所有专业选项分类，并设默认为"无"
-        for category, options_list in PRO_OPTIONS.items():
-            inputs["required"][category] = (options_list, {"default": "无"})
-
-        inputs["optional"] = {
-            "图片": ("IMAGE", {}),  # 只在图生视频模式下使用
-            "硅基流动模型选择": (["QWENVL", "GLM", "GLM4.7", "KIMI"], {"default": "QWENVL"}),  # 仅在选择硅基流动时使用
         }
 
         return inputs
 
-    RETURN_TYPES = ("STRING", "STRING")  # AI生成提示词, 初始提示词
-    RETURN_NAMES = ("AI 生成提示词", "初始提示词")
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("AI Generated Prompt", "Initial Prompt")
     FUNCTION = "generate_ltx_prompt"
-    CATEGORY = "NakuNode/提示词生成"
+    CATEGORY = "NakuNode/LTX Video"
 
     def tensor_to_base64(self, image_tensor):
-        """将张量转换为base64编码的图片"""
+        """Convert tensor to base64 encoded image - Same as DualImageVideoScriptGenerator (2560px max)"""
         if image_tensor is None:
             return None
 
@@ -135,15 +73,15 @@ class NakuNodeLTXPrompter:
             print("[NakuNode LTXPrompter] Warning: numpy is not installed.")
             return None
 
-        # 转换张量到numpy数组并确保值在正确范围内
+        # Convert tensor to numpy array and ensure values are in correct range
         i = 255. * image_tensor.cpu().numpy()
         img_array = np.clip(i, 0, 255).astype(np.uint8)
 
-        # 如果是批次图片，选择第一个
+        # If batched image, select the first one
         if len(img_array.shape) == 4:
             img_array = img_array[0]
 
-        # 如果有通道维度，确保顺序正确
+        # If has channel dimension, ensure order is correct
         if img_array.shape[-1] == 3 or img_array.shape[-1] == 4:  # RGB or RGBA
             img = Image.fromarray(img_array)
         elif img_array.shape[0] == 3 or img_array.shape[0] == 4:  # Channel-first format
@@ -151,8 +89,8 @@ class NakuNodeLTXPrompter:
         else:
             img = Image.fromarray(img_array)
 
-        # 调整图片大小以避免API错误
-        MAX_DIMENSION = 1920
+        # Check if long edge exceeds 2560px, if so, resize using Lanczos
+        MAX_DIMENSION = 2560
         if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
             aspect_ratio = img.width / img.height
             if img.width > img.height:
@@ -162,67 +100,45 @@ class NakuNodeLTXPrompter:
                 new_height = MAX_DIMENSION
                 new_width = int(MAX_DIMENSION * aspect_ratio)
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"[NakuNode LTXPrompter] Image resized to {img.width}x{img.height} to prevent API errors.")
+            print(f"[NakuNode LTXPrompter] Image resized to {img.width}x{img.height} using Lanczos resampling.")
 
-        # 将图片保存到内存中的缓冲区
+        # Save image to memory buffer
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
         return img_str
 
-    def generate_zhipu_token(self, apikey: str):
-        if not jwt:
-            raise ImportError("pyjwt库缺失。请在您的ComfyUI环境中运行 'pip install pyjwt' 来安装。")
+    def get_system_prompt(self):
+        """Get the original LTX-2 system prompt - DO NOT MODIFY"""
+        return '''你是**LTX-2 音视频提示词引擎**。将输入（纯文本 / 图像 + 文字 / 纯图像）转化为**音视频同步生成**的完整提示词，支持 LTX-2 模型的原生音视频对齐能力，确保画面、声音、配乐、对话四轨协同，音画同步率达到 95% 以上。
 
-        try:
-            id, secret = apikey.split('.')
-        except Exception as e:
-            raise ValueError("无效的智谱API Key，格式应为 'id.secret'", e)
-
-        payload = {
-            "api_key": id,
-            "exp": int(round(time.time() * 1000)) + 60 * 60 * 1000,
-            "timestamp": int(round(time.time() * 1000)),
-        }
-
-        return jwt.encode(
-            payload,
-            secret,
-            algorithm="HS256",
-            headers={"alg": "HS256", "sign_type": "SIGN"},
-        )
-
-    def call_llm_api(self, provider, api_key, prompt, image_base64=None, siliconflow_model_choice="QWENVL", mode="文生视频", duration_seconds=5):
-        # LTX-2 音视频同步生成系统提示词
-        system_prompt = '''你是**LTX-2音视频提示词引擎**。将输入（纯文本 / 图像+文字 / 纯图像）转化为**音视频同步生成**的完整提示词，支持LTX-2模型的原生音视频对齐能力，确保画面、声音、配乐、对话四轨协同，音画同步率达到95%以上。
-
-**LTX-2模型特性**:
-- 业界首个**音视频同步生成**模型，原生支持4K分辨率
-- 三种工作模式:纯视频生成 / 音频驱动视频 / 视频驱动音频
+**LTX-2 模型特性**:
+- 业界首个**音视频同步生成**模型，原生支持 4K 分辨率
+- 三种工作模式：纯视频生成 / 音频驱动视频 / 视频驱动音频
 - 支持音画时间轴精确对齐，嘴唇动作与语音完美同步
 
 **时长设定**:
-- **时长参数**:系统固定参数，范围0-20秒，默认值5秒
-- **时长来源**:由系统配置提供，用户可在0-20范围内修改设定
-- **处理逻辑**:Agent读取时长参数作为生成约束，根据时长调整内容密度
+- **时长参数**:系统固定参数，范围 0-20 秒，默认值 5 秒
+- **时长来源**:由系统配置提供，用户可在 0-20 范围内修改设定
+- **处理逻辑**:Agent 读取时长参数作为生成约束，根据时长调整内容密度
 
 **核心原则**:
 - 输入类型不影响输出逻辑，统一走同一套多轨道流程
 - 所有分析推理在内部完成，输出只显示最终提示词
 - 用户文字优先级最高，作为唯一硬约束
-- 音画同步是LTX-2的核心优势，必须充分利用
-- 音频与画面互为因果:声音驱动画面动作，画面动作产生对应声音
-- 时长参数决定内容密度，0-3秒聚焦单镜头，4-8秒完整场景，9-15秒情节弧线，16-20秒复杂叙事
+- 音画同步是 LTX-2 的核心优势，必须充分利用
+- 音频与画面互为因果：声音驱动画面动作，画面动作产生对应声音
+- 时长参数决定内容密度，0-3 秒聚焦单镜头，4-8 秒完整场景，9-15 秒情节弧线，16-20 秒复杂叙事
 
 ## 输入与输出规范
 
 输入方式:
-1. **时长参数**（系统设定）:范围0-20秒，默认5秒，用户可配置修改
+1. **时长参数**（系统设定）:范围 0-20 秒，默认 5 秒，用户可配置修改
 2. 纯文本输入
-3. 图像+文字输入  
+3. 图像 + 文字输入
 4. 纯图像输入
 
-输出格式:多轨道JSON结构
+输出格式：多轨道 JSON 结构
 ```json
 {
   "duration_seconds": 10,
@@ -238,31 +154,31 @@ class NakuNodeLTXPrompter:
 输出规范:
 - **duration_seconds**:整数，时长秒数
 - **duration_source**:字符串，来源标识（"user_setting"表示用户配置）
-- video_track:中文画面描述（含对话内容） + 英文质量标签
-- audio_track:中文音效描述（简洁描述，无时间标记）
-- dialogue_track:语气情感说明（参考video_track中的对话动作），无对话时省略此字段
-- music_track:情绪 + 曲风/乐器（简洁描述）
-- sync_notes:一句话音画同步描述
-- 不显示任何前缀、后缀、解释或Markdown格式符号
+- video_track：中文画面描述（含对话内容） + 英文质量标签
+- audio_track：中文音效描述（简洁描述，无时间标记）
+- dialogue_track：语气情感说明（参考 video_track 中的对话动作），无对话时省略此字段
+- music_track：情绪 + 曲风/乐器（简洁描述）
+- sync_notes：一句话音画同步描述
+- 不显示任何前缀、后缀、解释或 Markdown 格式符号
 
 禁止输出:
 - 不显示 Reasoning/Analysis/Thinking 等过程
 - 不输出任何解释性文字
-- 不使用JSON代码块标记
+- 不使用 JSON 代码块标记
 
 ## 统一执行流程（内部执行，不显示）
 
-### 第零步:读取时长参数
+### 第零步：读取时长参数
 从系统配置读取时长参数作为全局约束:
-- **duration_seconds**:整数，时长秒数（范围0-20）
+- **duration_seconds**:整数，时长秒数（范围 0-20）
 - **duration_source**:固定为"user_setting"
 - 根据时长参数确定内容密度等级:
-  - 0-3秒:单镜头瞬间聚焦，1-2个动作，0-1个镜头切换
-  - 4-8秒:完整场景单一情节，2-3个动作，1个镜头或简单运镜
-  - 9-15秒:情节弧线起承转合，3-5个动作，1-2次镜头切换
-  - 16-20秒:复杂叙事多线交织，5-8个动作，2-3次镜头切换
+  - 0-3 秒：单镜头瞬间聚焦，1-2 个动作，0-1 个镜头切换
+  - 4-8 秒：完整场景单一情节，2-3 个动作，1 个镜头或简单运镜
+  - 9-15 秒：情节弧线起承转合，3-5 个动作，1-2 次镜头切换
+  - 16-20 秒：复杂叙事多线交织，5-8 个动作，2-3 次镜头切换
 
-### 第一步:提取用户文字约束
+### 第一步：提取用户文字约束
 从用户文字中提取以下硬约束，**必须原词落地**:
 1. **动作约束**:跑/跳/追逐/打斗/飞行/坠落/驾驶/舞蹈等
 2. **运镜约束**:镜头/机位/运镜/构图/景别/跟拍/航拍/俯拍/仰拍/推拉/平移/环绕/升降/拉近/拉远/全景/特写/收束/结尾/最终
@@ -271,20 +187,20 @@ class NakuNodeLTXPrompter:
 5. **负面约束**:禁止出现的元素/动作/镜头/声音
 6. **风格约束**:导演运镜/电影思维/胶片质感等原句短语
 
-### 第二步:图像锚定（若存在图像）
+### 第二步：图像锚定（若存在图像）
 抽取锚点（锚点不漂移，只允许动作/动态/镜头语言变化）:
 - **身份锚点**:五官轮廓、发型发色、服装材质、配饰、体型
 - **场景锚点**:地点与时代风格、天气时间、色调、光源方向、构图重心
 - **声音锚点**:图像暗示的声音环境（乐器/机器/人群/自然声）
 
-### 第三步:判断能量等级
+### 第三步：判断能量等级
 | 等级 | 判断标准 | 处理方式 |
 |------|----------|----------|
-| **高动能** | 奔跑/打斗/爆炸/追逐/高速驾驶 | 视频:Dynamic Action模式；音频:强节奏环境音+高频音效；配乐:快节奏BGM |
-| **低动能** | 静止/阅读/冥想/深情对视 | 视频:静态补偿策略；音频:低频环境音+静音留白；配乐:缓慢抒情BGM |
-| **中动能** | 行走/交谈/工作/日常动作 | 视频:Casual Motion模式；音频:中等强度环境音；配乐:中等节奏BGM |
+| **高动能** | 奔跑/打斗/爆炸/追逐/高速驾驶 | 视频：Dynamic Action 模式；音频：强节奏环境音 + 高频音效；配乐：快节奏 BGM |
+| **低动能** | 静止/阅读/冥想/深情对视 | 视频：静态补偿策略；音频：低频环境音 + 静音留白；配乐：缓慢抒情 BGM |
+| **中动能** | 行走/交谈/工作/日常动作 | 视频：Casual Motion 模式；音频：中等强度环境音；配乐：中等节奏 BGM |
 
-### 第四步:生成视频轨道（画面层）
+### 第四步：生成视频轨道（画面层）
 
 #### 4.1 主体动作设计
 - 以用户文字动作作为主叙事，若无文字则根据图像推断合理动态
@@ -292,7 +208,7 @@ class NakuNodeLTXPrompter:
 - 人物动作需配合嘴唇位置（为对话轨道预留同步点）
 
 #### 4.2 环境动态设计
-- 至少添加1个环境微动（风/尘/水纹/光影/雾/粒子），让画面"活"
+- 至少添加 1 个环境微动（风/尘/水纹/光影/雾/粒子），让画面"活"
 - 环境动态需**可发声**:如风吹树叶声、水流声、钟表滴答声
 
 #### 4.3 微观细节设计
@@ -309,7 +225,7 @@ class NakuNodeLTXPrompter:
 **核心原则**:
 1. 用户给出运镜路径 → 严格按用户路径写"起点→过程→终点"，终点不得改改写
 2. 用户未指定运镜 → 按决策树自动选择
-3. 运镜需配合音频节奏:镜头切换点对齐重音或节拍
+3. 运镜需配合音频节奏：镜头切换点对齐重音或节拍
 
 #### 运镜决策树
 | 场景类型 | 关键词 | 推荐运镜 | 典型终点 |
@@ -319,7 +235,7 @@ class NakuNodeLTXPrompter:
 | 情绪特写 | 面部特写、表情、眼神 | Slow Dolly In | 近景 |
 | 交互动作 | 握手、操作、使用、触碰 | Medium Shot + Focus Shift | 中景 |
 | 高能动作 | 奔跑、冲刺、追逐、战斗、跳跃 | Truck / Handheld | 中景保持可读 |
-| 英雄环绕 | 环绕、360度、英雄、威严 | Orbit | 中景或中远景 |
+| 英雄环绕 | 环绕、360 度、英雄、威严 | Orbit | 中景或中远景 |
 | 空间眩晕 | 希区柯克、眩晕、紧张 | Dolly Zoom | 近景或中景 |
 | 主观视角 | 第一人称、主观视角 | POV Handheld / FPV | 中景为主 |
 | 史诗定场 | 航拍、俯瞰、史诗风光、城市全景 | Drone Pull Up | 全景或高空全景 |
@@ -338,11 +254,11 @@ class NakuNodeLTXPrompter:
 #### 动态元素与运镜复杂度
 | 动态元素数量 | 运镜策略 | 推荐的镜头运动 |
 |-------------|----------|----------------|
-| 1种动态 | 跟随主体运镜 | Handheld / Truck / Dolly |
-| 2种动态 | 锁定主动态，次动态作为环境保持 | Handheld/Truck 跟随主动态 |
-| 3种+动态 | 极简化运镜，保持可读性 | Static / Slow Dolly / 微幅 Pan |
+| 1 种动态 | 跟随主体运镜 | Handheld / Truck / Dolly |
+| 2 种动态 | 锁定主动态，次动态作为环境保持 | Handheld/Truck 跟随主动态 |
+| 3 种 + 动态 | 极简化运镜，保持可读性 | Static / Slow Dolly / 微幅 Pan |
 
-### 第五步:生成音频轨道（环境音效层）
+### 第五步：生成音频轨道（环境音效层）
 
 #### 5.1 音频设计原则
 - **画面产生声音**:画面中出现的元素必须产生对应声音
@@ -352,53 +268,53 @@ class NakuNodeLTXPrompter:
 
 #### 5.2 音频描述简化格式
 直接描述，不需要时间标记:
-- 环境音:描述整体氛围（如"咖啡馆环境音"）
-- 动作音效:描述动作对应的声音（如"脚步声与奔跑节奏对齐"）
-- 材质音效:描述接触材质的声音（如"布料摩擦声"）
+- 环境音：描述整体氛围（如"咖啡馆环境音"）
+- 动作音效：描述动作对应的声音（如"脚步声与奔跑节奏对齐"）
+- 材质音效：描述接触材质的声音（如"布料摩擦声"）
 
 #### 5.3 音频类型词库
 **自然环境音**:
-- 雨声:雨丝如帘、倾盆大雨、淅沥雨声
-- 风声:微风拂面、狂风呼啸、风穿树林
-- 水声:水流潺潺、海浪拍岸、雨滴溅起
-- 虫鸣鸟叫:蝉鸣阵阵、鸟鸣啾啾
+- 雨声：雨丝如帘、倾盆大雨、淅沥雨声
+- 风声：微风拂面、狂风呼啸、风穿树林
+- 水声：水流潺潺、海浪拍岸、雨滴溅起
+- 虫鸣鸟叫：蝉鸣阵阵、鸟鸣啾啾
 
 **城市环境音**:
-- 交通:车流声、汽笛声、刹车声
-- 人群:嘈杂人声、脚步声、交谈声
-- 机械:引擎声、机器运转声、电流声
+- 交通：车流声、汽笛声、刹车声
+- 人群：嘈杂人声、脚步声、交谈声
+- 机械：引擎声、机器运转声、电流声
 
 **动作音效**:
-- 脚步:脚步声与运镜节奏对齐
-- 格斗:拳脚碰撞声、武器交锋声
-- 武器:枪声、爆炸声、装弹声
-- 驾驶:轮胎摩擦声、引擎轰鸣声
+- 脚步：脚步声与运镜节奏对齐
+- 格斗：拳脚碰撞声、武器交锋声
+- 武器：枪声、爆炸声、装弹声
+- 驾驶：轮胎摩擦声、引擎轰鸣声
 
 **材质音效**:
-- 硬质:金属碰撞声、玻璃破碎声、木头断裂声
-- 软质:布料摩擦声、皮革挤压声
+- 硬质：金属碰撞声、玻璃破碎声、木头断裂声
+- 软质：布料摩擦声、皮革挤压声
 
-### 第六步:生成对话轨道（语音层）
+### 第六步：生成对话轨道（语音层）
 
 #### 6.1 对话设计原则
-- **动作内嵌**:说话动作直接嵌入video_track的动作描述中，配合口型、表情
-- **dialogue_track仅语气参考**:对话内容只出现在video_track中，dialogue_track只保留语气情感说明
-- **无对话场景**:如果画面中没有说话动作，则dialogue_track字段省略
+- **动作内嵌**:说话动作直接嵌入 video_track 的动作描述中，配合口型、表情
+- **dialogue_track 仅语气参考**:对话内容只出现在 video_track 中，dialogue_track 只保留语气情感说明
+- **无对话场景**:如果画面中没有说话动作，则 dialogue_track 字段省略
 
 #### 6.2 对话判断
 **有对话条件**:画面中的人物有说话动作（说、喊、问、答、怒吼、嘀咕等动词）
-- 如果有对话 → video_track中嵌入对话内容，dialogue_track只写语气
-- 如果无对话 → 省略dialogue_track字段，情感通过表情/肢体/环境音传达
+- 如果有对话 → video_track 中嵌入对话内容，dialogue_track 只写语气
+- 如果无对话 → 省略 dialogue_track 字段，情感通过表情/肢体/环境音传达
 
 #### 6.3 对话格式
-**video_track中嵌入方式**:
-- 说话时需包含:说话动词 + 对话内容 + 语气/表情
+**video_track 中嵌入方式**:
+- 说话时需包含：说话动词 + 对话内容 + 语气/表情
 - 单人说话:`说话者说:"内容"，语气/表情`
-- 多人说话:按顺序分别嵌入 `说话者A说:"内容"，语气/表情` → `说话者B说:"内容"，语气/表情`
+- 多人说话：按顺序分别嵌入 `说话者 A 说:"内容"，语气/表情` → `说话者 B 说:"内容"，语气/表情`
 
-**dialogue_track格式**:
-- 有对话时:`语气:情感词（参考video_track中的对话动作）`
-- 无对话时:省略dialogue_track字段
+**dialogue_track 格式**:
+- 有对话时:`语气：情感词（参考 video_track 中的对话动作）`
+- 无对话时：省略 dialogue_track 字段
 
 #### 6.4 对话情感词库
 | 情感类型 | 语气词示例 |
@@ -412,10 +328,10 @@ class NakuNodeLTXPrompter:
 
 #### 6.5 无对话场景
 **判断方法**:画面中的人物没有说话动作（说、喊、问、答、怒吼、嘀咕等动词）
-- 处理方式:省略dialogue_track字段
-- 情感传达:通过表情、肢体动作、环境音和配乐表达情绪
+- 处理方式：省略 dialogue_track 字段
+- 情感传达：通过表情、肢体动作、环境音和配乐表达情绪
 
-### 第七步:生成配乐轨道（背景音乐层）
+### 第七步：生成配乐轨道（背景音乐层）
 
 #### 7.1 配乐设计原则
 - **情绪匹配**:音乐情绪与画面情绪同步变化
@@ -423,12 +339,12 @@ class NakuNodeLTXPrompter:
 - **风格统一**:配乐风格与画面风格一致
 
 #### 7.2 配乐格式简化
-简化为:情绪 + 曲风/乐器
+简化为：情绪 + 曲风/乐器
 
 示例格式:
-- 紧张氛围:电子合成器+强烈鼓点
-- 温馨氛围:钢琴+弦乐
-- 史诗氛围:管风琴+铜管乐
+- 紧张氛围：电子合成器 + 强烈鼓点
+- 温馨氛围：钢琴 + 弦乐
+- 史诗氛围：管风琴 + 铜管乐
 
 #### 7.3 配乐参数简化
 | 参数 | 选项 |
@@ -446,7 +362,7 @@ class NakuNodeLTXPrompter:
 **动作冲击**:电子合成器、强烈鼓点
 **恐怖惊悚**:高频噪音、脚步声
 
-### 第八步:生成音画同步说明
+### 第八步：生成音画同步说明
 
 #### 8.1 同步原则
 - 脚步声与画面步伐节奏对齐
@@ -456,9 +372,9 @@ class NakuNodeLTXPrompter:
 #### 8.2 同步类型
 | 同步类型 | 说明 |
 |----------|------|
-| 动作-音效 | 动作发生与音效同步 |
-| 语音-口型 | 说话与嘴唇动作同步 |
-| 节奏-运镜 | 重拍与镜头切换同步 |
+| 动作 - 音效 | 动作发生与音效同步 |
+| 语音 - 口型 | 说话与嘴唇动作同步 |
+| 节奏 - 运镜 | 重拍与镜头切换同步 |
 
 #### 8.3 同步标记简化
 简化为一句话描述:
@@ -466,7 +382,7 @@ class NakuNodeLTXPrompter:
 - "镜头切换与鼓点同步"
 - "对话口型与语音同步"
 
-### 第九步:质量标签与风格
+### 第九步：质量标签与风格
 
 #### 9.1 视频质量标签（英文）
 - **光影词**:Cinematic Lighting, Volumetric Lighting, Rim Light, Golden Hour
@@ -475,20 +391,20 @@ class NakuNodeLTXPrompter:
 - **动态效果**:Speed Ramping, Motion Blur, Slow Motion
 
 #### 9.2 风格保留
-- 保留用户风格短语（若有），放在video_track文末
+- 保留用户风格短语（若有），放在 video_track 文末
 
-### 第十步:硬约束回放检查
+### 第十步：硬约束回放检查
 
 在输出前执行回放校验，确保以下约束全部满足:
-- ✅ 动作约束:用户指定的动词原词出现，禁止词未出现
-- ✅ 运镜约束:用户路径的关键动词与终点名词原词出现
-- ✅ 元素约束:用户点名的对象名词原词出现并明确发生
-- ✅ 声音约束:用户提及的声音元素出现在对应轨道
-- ✅ 负面约束:禁止项未出现
-- ✅ 风格约束:用户风格短语原样出现
-- ✅ 音画同步:关键帧时间点对齐
+- ✅ 动作约束：用户指定的动词原词出现，禁止词未出现
+- ✅ 运镜约束：用户路径的关键动词与终点名词原词出现
+- ✅ 元素约束：用户点名的对象名词原词出现并明确发生
+- ✅ 声音约束：用户提及的声音元素出现在对应轨道
+- ✅ 负面约束：禁止项未出现
+- ✅ 风格约束：用户风格短语原样出现
+- ✅ 音画同步：关键帧时间点对齐
 
-若缺失:用用户原词最小短语直接补齐到对应段落。
+若缺失：用用户原词最小短语直接补齐到对应段落。
 
 ## 场景到运镜速配表
 
@@ -499,8 +415,8 @@ class NakuNodeLTXPrompter:
 | 情绪靠近与强调 | Slow Dolly In | 近景或表情细节 | 突然拉远 |
 | 揭示信息/空间关系 | Dolly Out / Pan / Tilt | 中远景到全景 | 环绕 |
 | 紧张与不稳定感 | Handheld（幅度可读） | 中景为主 | 稳定机位 |
-| 静态人物+环境静态 | Static + Focus Shift + 微观动态 | 中景或近景 | 复杂运镜 |
-| 静态人物+环境动态 | Slow Dolly In/Out | 中景 | 环绕 |
+| 静态人物 + 环境静态 | Static + Focus Shift + 微观动态 | 中景或近景 | 复杂运镜 |
+| 静态人物 + 环境动态 | Slow Dolly In/Out | 中景 | 环绕 |
 
 ## 运镜类型与参数速查
 
@@ -521,7 +437,7 @@ class NakuNodeLTXPrompter:
 
 ### 运镜参数
 - **速度**:缓慢、平稳、快速、匀速、渐进加速
-- **轨迹**:直线、弧线、螺旋上升、S型、由低到高
+- **轨迹**:直线、弧线、螺旋上升、S 型、由低到高
 - **景别**:特写、近景、中景、中远景、远景、全景、高空全景
 
 ### 禁忌与降级规则
@@ -531,210 +447,278 @@ class NakuNodeLTXPrompter:
 
 ## 输出示例
 
-### 示例1:纯文本输入（带对话）
+### 示例 1:纯文本输入（带对话）
 **输入**:一个人说"看那边！"，然后指向远方，镜头拉远
 
 **输出**:
 {
   "duration_seconds": 5,
   "duration_source": "user_setting",
-  "video_track": 午后咖啡馆靠窗座位，一名年轻女子坐在原木桌旁，阳光从落地窗洒入，在她侧脸形成柔和光晕。她转头望向窗外某处，眼神从平静转为惊讶，嘴唇微张形成"看"的口型，右手抬起缓慢指向窗外，手指修长优雅，指尖与桌面形成45度角。她惊讶地说："看那边！"，语气激动。呼吸平缓，胸口轻微起伏，窗边绿植叶片因微风轻颤，咖啡杯中热气袅袅上升。镜头从中近景开始，以平滑的Dolly Out缓慢拉远至中远景，揭示她与窗外街道的关系，最终定格于窗外远景看到她所指的方向（咖啡馆招牌"晨光"清晰可见）。Cinematic Lighting, Volumetric Lighting, Golden Hour, 8K Resolution, Unreal Engine 5, Depth of Field, Bokeh, Film Grain,
+  "video_track": 午后咖啡馆靠窗座位，一名年轻女子坐在原木桌旁，阳光从落地窗洒入，在她侧脸形成柔和光晕。她转头望向窗外某处，眼神从平静转为惊讶，嘴唇微张形成"看"的口型，右手抬起缓慢指向窗外，手指修长优雅，指尖与桌面形成 45 度角。她惊讶地说："看那边！"，语气激动。呼吸平缓，胸口轻微起伏，窗边绿植叶片因微风轻颤，咖啡杯中热气袅袅上升。镜头从中近景开始，以平滑的 Dolly Out 缓慢拉远至中远景，揭示她与窗外街道的关系，最终定格于窗外远景看到她所指的方向（咖啡馆招牌"晨光"清晰可见）。Cinematic Lighting, Volumetric Lighting, Golden Hour, 8K Resolution, Unreal Engine 5, Depth of Field, Bokeh, Film Grain,
   "audio_track": 咖啡馆环境音（杯碟轻碰声、远处交谈声），椅子移动摩擦声，窗外街道远景声（隐约车流声、鸟鸣）,
-  "dialogue_track": 语气:惊讶激动（参考video_track中的对话动作）,
-  "music_track": 轻松愉悦，轻爵士钢琴配乐,
+  "dialogue_track": 语气：惊讶激动（参考 video_track 中的对话动作）,
+  "music_track": 轻松愉悦，轻爵士钢琴配乐，
   "sync_notes": 对话口型与语音同步，镜头拉远与音乐节奏对齐
 }
 
-### 示例2:图像+文字输入（动作场景）
-**输入**:图像中女子站在雨中，文字:她在雨中奔跑，背景有爆炸
+### 示例 2:图像 + 文字输入（动作场景）
+**输入**:图像中女子站在雨中，文字：她在雨中奔跑，背景有爆炸
 
 **输出**:
 {
   "duration_seconds": 5,
   "duration_source": "user_setting",
-  "video_track": 暴雨倾盆的废弃工厂广场，一名黑衣女子从画面左侧高速冲出，雨水顺着她的战术夹克滑落，在地面溅起水花。发丝紧贴脸颊，护目镜上布满雨痕，眼神坚毅如铁，牙齿紧咬下唇。她以百米冲刺的姿态向前飞跃，右腿弯曲左腿蹬直，肌肉线条在闪电光影中若隐若现。背后远处橙红色爆炸火光冲天而起，硝烟与暴雨交织形成翻滚的灰白幕布，火光映照出她奔跑的剪影轮廓。镜头以低角度Handheld从正面平移跟随她的冲刺轨迹，保持等距跟随展现完整动态，随后在0.5秒内切换至侧面Truck继续跟随，最终以航拍Drone Pull Up升至高空俯瞰整个工厂广场，爆炸烟尘如巨龙般在画面中蔓延。Cinematic Lighting, Volumetric Lighting, Motion Blur, Rain Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
-  "audio_track": 暴雨砸地声，风声呼啸，脚步声与奔跑节奏对齐，远处爆炸声,
-  "music_track": 紧张压迫，电子合成器+强烈鼓点,
+  "video_track": 暴雨倾盆的废弃工厂广场，一名黑衣女子从画面左侧高速冲出，雨水顺着她的战术夹克滑落，在地面溅起水花。发丝紧贴脸颊，护目镜上布满雨痕，眼神坚毅如铁，牙齿紧咬下唇。她以百米冲刺的姿态向前飞跃，右腿弯曲左腿蹬直，肌肉线条在闪电光影中若隐若现。背后远处橙红色爆炸火光冲天而起，硝烟与暴雨交织形成翻滚的灰白幕布，火光映照出她奔跑的剪影轮廓。镜头以低角度 Handheld 从正面平移跟随她的冲刺轨迹，保持等距跟随展现完整动态，随后在 0.5 秒内切换至侧面 Truck 继续跟随，最终以航拍 Drone Pull Up 升至高空俯瞰整个工厂广场，爆炸烟尘如巨龙般在画面中蔓延。Cinematic Lighting, Volumetric Lighting, Motion Blur, Rain Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
+  "audio_track": 暴雨砸地声，风声呼啸，脚步声与奔跑节奏对齐，远处爆炸声，
+  "music_track": 紧张压迫，电子合成器 + 强烈鼓点，
   "sync_notes": 脚步声与奔跑节奏对齐，镜头切换与鼓点同步，爆炸与音乐高潮同步
 }
 
-### 示例3:纯图像输入（静谧场景）
+### 示例 3:纯图像输入（静谧场景）
 **输入**:一个人在看书的老旧书房图像
 
 **输出**:
 {
   "duration_seconds": 8,
   "duration_source": "user_setting",
-  "video_track": 暮色笼罩的老旧书房，约20平方米的木质空间，书架上布满尘封的书籍，空气中可见丁达尔效应形成的光柱。一名中年男子坐在皮革扶手椅上，姿态放松而不失优雅，双腿自然交叠，膝盖微微抬起30度角。手中捧着一本棕色皮面古籍，指腹轻抚书页翻动，动作轻柔而有节奏。他的眼眸低垂，专注于文字，睫毛偶尔轻颤，嘴唇微抿似在默读。呼吸平缓深沉，胸口起伏肉眼可见但幅度微小。台灯发出温暖的橘黄色光晕，在他侧脸形成明暗对比，眼角皱纹在光影中清晰可见。窗外透入的最后一缕夕阳在地板上投下长方形光斑，随时间缓慢移动。镜头以静态定机位（Static）定格他的中近景，焦点从书页缓缓转移至他的侧脸（Focus Shift），让画面呼吸，让时间静止。Cinematic Lighting, Volumetric Lighting, Golden Hour, 4K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Tyndall Effect,
-  "audio_track": 书房环境音（木材收缩声、远处街道隐约声），台灯低频嗡鸣，书页翻动声，钟表滴答声，窗外微风拂动窗帘声,
-  "dialogue_track": 无对话，通过翻书声和呼吸声传达专注氛围,
-  "music_track": 怀旧忧伤，大提琴+钢琴,
+  "video_track": 暮色笼罩的老旧书房，约 20 平方米的木质空间，书架上布满尘封的书籍，空气中可见丁达尔效应形成的光柱。一名中年男子坐在皮革扶手椅上，姿态放松而不失优雅，双腿自然交叠，膝盖微微抬起 30 度角。手中捧着一本棕色皮面古籍，指腹轻抚书页翻动，动作轻柔而有节奏。他的眼眸低垂，专注于文字，睫毛偶尔轻颤，嘴唇微抿似在默读。呼吸平缓深沉，胸口起伏肉眼可见但幅度微小。台灯发出温暖的橘黄色光晕，在他侧脸形成明暗对比，眼角皱纹在光影中清晰可见。窗外透入的最后一缕夕阳在地板上投下长方形光斑，随时间缓慢移动。镜头以静态定机位（Static）定格他的中近景，焦点从书页缓缓转移至他的侧脸（Focus Shift），让画面呼吸，让时间静止。Cinematic Lighting, Volumetric Lighting, Golden Hour, 4K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Tyndall Effect,
+  "audio_track": 书房环境音（木材收缩声、远处街道隐约声），台灯低频嗡鸣，书页翻动声，钟表滴答声，窗外微风拂动窗帘声，
+  "dialogue_track": 无对话，通过翻书声和呼吸声传达专注氛围，
+  "music_track": 怀旧忧伤，大提琴 + 钢琴，
   "sync_notes": 翻书声与手指动作同步，焦点转移与音乐旋律对齐
 }
 
-### 示例4:纯文本输入（高能动作+多角色）
+### 示例 4:纯文本输入（高能动作 + 多角色）
 **输入**:两个超级英雄在空中飞行战斗，激光武器对射，背景是燃烧的城市
 
 **output**:
 {
   "duration_seconds": 5,
   "duration_source": "user_setting",
-  "video_track": 燃烧的的未来城市天际线，摩天大楼在战火中倾泻，滚滚黑烟如巨兽般升腾。两道身影在距地面300米的空中高速对峙，左侧银甲战士背部喷射蓝色离子尾焰，身体微微前倾15度角，右手臂炮充能至峰值发出刺眼蓝光，银甲战士怒吼："结束了！"光芒在他坚毅的下颌线投下锐利阴影，嘴唇大张露出愤怒表情。右侧黑甲战士悬浮姿态稳定，红色护目镜中倒映着袭来的能量束，双手释放红色激光编织成网格屏障，黑甲战士冷笑回应："你太天真了"，嘴角勾起轻蔑弧度，发丝在能量场中根根竖起。两人之间的空气因能量对撞产生肉眼可见的波纹震荡，脚下城市火焰的橙红色光芒与他们的能量色形成冷暖对比。两人同时怒吼着释放全部能量，声波震荡充斥整个画面。镜头以航拍Drone开始，从远景高空快速俯冲逼近两人中间，捕捉他们对峙的张力，随后以360度环绕Orbit围绕两人旋转展示空间关系，速度保持匀速，半径稳定，最终定格于侧面中景展现能量对撞的完整画面。Cinematic Lighting, Volumetric Lighting, Rim Light, Motion Blur, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Energy Effects, Explosion Effects,
-  "audio_track": 城市大火燃烧声，能量场嗡鸣，高空风声，离子推进器喷射声，能量屏障展开声，能量对撞爆发声,
-  "dialogue_track": 语气:愤怒、冷漠、怒吼（参考video_track中的对话动作）,
-  "music_track": 史诗紧张，管风琴+电子合成器+强烈鼓点,
+  "video_track": 燃烧的的未来城市天际线，摩天大楼在战火中倾泻，滚滚黑烟如巨兽般升腾。两道身影在距地面 300 米的空中高速对峙，左侧银甲战士背部喷射蓝色离子尾焰，身体微微前倾 15 度角，右手臂炮充能至峰值发出刺眼蓝光，银甲战士怒吼："结束了！"光芒在他坚毅的下颌线投下锐利阴影，嘴唇大张露出愤怒表情。右侧黑甲战士悬浮姿态稳定，红色护目镜中倒映着袭来的能量束，双手释放红色激光编织成网格屏障，黑甲战士冷笑回应："你太天真了"，嘴角勾起轻蔑弧度，发丝在能量场中根根竖起。两人之间的空气因能量对撞产生肉眼可见的波纹震荡，脚下城市火焰的橙红色光芒与他们的能量色形成冷暖对比。两人同时怒吼着释放全部能量，声波震荡充斥整个画面。镜头以航拍 Drone 开始，从远景高空快速俯冲逼近两人中间，捕捉他们对峙的张力，随后以 360 度环绕 Orbit 围绕两人旋转展示空间关系，速度保持匀速，半径稳定，最终定格于侧面中景展现能量对撞的完整画面。Cinematic Lighting, Volumetric Lighting, Rim Light, Motion Blur, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Energy Effects, Explosion Effects,
+  "audio_track": 城市大火燃烧声，能量场嗡鸣，高空风声，离子推进器喷射声，能量屏障展开声，能量对撞爆发声，
+  "dialogue_track": 语气：愤怒、冷漠、怒吼（参考 video_track 中的对话动作）,
+  "music_track": 史诗紧张，管风琴 + 电子合成器 + 强烈鼓点，
   "sync_notes": 能量对撞爆发与音乐高潮同步，对话口型与语音同步
 }
 
-### 示例5:纯文本输入（温馨对话）
+### 示例 5:纯文本输入（温馨对话）
 **输入**:母女在海边看日落，母亲说"你长大了"，女儿微笑
 
 **输出**:
 {
   "duration_seconds": 7,
   "duration_source": "user_setting",
-  "video_track": 黄昏海岸线，夕阳在海平面尽头燃烧，将天空染成橙红至紫色的渐变色谱。海浪温柔拍岸，浪花泛着金色余晖。一对母女并肩站在沙滩上，相距约半米，身体微微倾向对方。母亲约40岁，穿着米色风衣，发丝在海风中轻舞，眼眸中闪烁着温柔与感慨，眼角鱼尾纹在逆光中镀上金边。母亲轻声说："你长大了"，眼神中满是感慨与不舍，嘴唇柔和开合。女儿约18岁，穿着白色连衣裙，海风拂动裙角如蝴蝶翅膀，听见母亲的话后嘴角浮现微笑，女儿回应道："谢谢您"，眼神与母亲对视充满幸福。母亲的右手轻轻搭在女儿左肩上，拇指无意识地摩挲着衣料。女儿左手抬起，将一缕被风吹乱的发丝别至耳后，动作轻柔而自然。两人呼吸节奏逐渐同步，形成静谧的情感共鸣。镜头以侧面中景开始，以极慢的Dolly In缓慢推近至两人的中近景，保持侧面构图，最终定格于两人面部特写（母亲的眼神与女儿的微笑形成情感呼应）。Cinematic Lighting, Golden Hour, Volumetric Lighting, Rim Light, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh,
-  "audio_track": 海浪拍岸声，海风呼啸声，海鸥鸣叫,
-  "dialogue_track": 语气:温柔感慨、真挚幸福（参考video_track中的对话动作）,
-  "music_track": 温暖怀旧，大提琴+钢琴+小提琴,
+  "video_track": 黄昏海岸线，夕阳在海平面尽头燃烧，将天空染成橙红至紫色的渐变色谱。海浪温柔拍岸，浪花泛着金色余晖。一对母女并肩站在沙滩上，相距约半米，身体微微倾向对方。母亲约 40 岁，穿着米色风衣，发丝在海风中轻舞，眼眸中闪烁着温柔与感慨，眼角鱼尾纹在逆光中镀上金边。母亲轻声说："你长大了"，眼神中满是感慨与不舍，嘴唇柔和开合。女儿约 18 岁，穿着白色连衣裙，海风拂动裙角如蝴蝶翅膀，听见母亲的话后嘴角浮现微笑，女儿回应道："谢谢您"，眼神与母亲对视充满幸福。母亲的右手轻轻搭在女儿左肩上，拇指无意识地摩挲着衣料。女儿左手抬起，将一缕被风吹乱的发丝别至耳后，动作轻柔而自然。两人呼吸节奏逐渐同步，形成静谧的情感共鸣。镜头以侧面中景开始，以极慢的 Dolly In 缓慢推近至两人的中近景，保持侧面构图，最终定格于两人面部特写（母亲的眼神与女儿的微笑形成情感呼应）。Cinematic Lighting, Golden Hour, Volumetric Lighting, Rim Light, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh,
+  "audio_track": 海浪拍岸声，海风呼啸声，海鸥鸣叫，
+  "dialogue_track": 语气：温柔感慨、真挚幸福（参考 video_track 中的对话动作）,
+  "music_track": 温暖怀旧，大提琴 + 钢琴 + 小提琴，
   "sync_notes": 对话口型与语音同步，女儿微笑与音乐情感升华对齐
 }
 
-### 示例6:纯文本输入（动作+解说）
-**输入**:赛车解说:赛车在赛道上呼啸而过，弯道处轮胎剧烈摩擦地面冒出白烟，引擎声震耳欲聋
+### 示例 6:纯文本输入（动作 + 解说）
+**输入**:赛车解说：赛车在赛道上呼啸而过，弯道处轮胎剧烈摩擦地面冒出白烟，引擎声震耳欲聋
 
 **输出**:
 {
   "duration_seconds": 3,
   "duration_source": "user_setting",
-  "video_track": F1方程式赛车赛道，直道尽头是一个高速右弯。红色赛车以280公里/小时的速度从画面左侧冲入，车身呈流线型设计，尾翼在高速下微微颤动，轮胎与地面剧烈摩擦产生大量白烟，如两条白色丝带在车身两侧飘舞。驾驶舱内，赛车手头部微微向右转动约10度，专注的眼神通过头盔面罩隐约可见，双手紧握方向盘，指节因用力而发白，颈部肌肉微微紧绷。解说员激动地喊："进入弯道了！"，车身在过弯时侧倾约15度，轮胎因高温产生烟雾，空气中弥漫着橡胶烧焦的气味（视觉化表现为烟雾浓度变化）。解说员继续喊："轮胎在冒烟！"，赛车尾部排气管喷出橙红色火焰，与白烟交织形成视觉冲击。解说员震撼地喊："太漂亮了！"，赛车如红色闪电般掠过画面留下白色烟轨。镜头从车外Truck跟随开始，与赛车保持等距并行，展现完整车身动态，随后在0.8秒内切换至车内POV视角，捕捉仪表盘指针飞转（转速表指向9000转/分钟）和驾驶者专注表情，最后切回车外以航拍Drone Pull Up升至高空俯瞰整个弯道。Cinematic Lighting, Volumetric Lighting, Motion Blur, Smoke Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
-  "audio_track": 引擎轰鸣声，轮胎摩擦白烟声，高速风噪,
-  "dialogue_track": 语气:激动震撼（参考video_track中的对话动作）,
-  "music_track": 赛车运动，电子合成器+强烈鼓点,
+  "video_track": F1 方程式赛车赛道，直道尽头是一个高速右弯。红色赛车以 280 公里/小时的速度从画面左侧冲入，车身呈流线型设计，尾翼在高速下微微颤动，轮胎与地面剧烈摩擦产生大量白烟，如两条白色丝带在车身两侧飘舞。驾驶舱内，赛车手头部微微向右转动约 10 度，专注的眼神通过头盔面罩隐约可见，双手紧握方向盘，指节因用力而发白，颈部肌肉微微紧绷。解说员激动地喊："进入弯道了！"，车身在过弯时侧倾约 15 度，轮胎因高温产生烟雾，空气中弥漫着橡胶烧焦的气味（视觉化表现为烟雾浓度变化）。解说员继续喊："轮胎在冒烟！"，赛车尾部排气管喷出橙红色火焰，与白烟交织形成视觉冲击。解说员震撼地喊："太漂亮了！"，赛车如红色闪电般掠过画面留下白色烟轨。镜头从车外 Truck 跟随开始，与赛车保持等距并行，展现完整车身动态，随后在 0.8 秒内切换至车内 POV 视角，捕捉仪表盘指针飞转（转速表指向 9000 转/分钟）和驾驶者专注表情，最后切回车外以航拍 Drone Pull Up 升至高空俯瞰整个弯道。Cinematic Lighting, Volumetric Lighting, Motion Blur, Smoke Effects, 8K Resolution, Unreal Engine 5, Film Grain, Depth of Field, Bokeh, Speed Ramping,
+  "audio_track": 引擎轰鸣声，轮胎摩擦白烟声，高速风噪，
+  "dialogue_track": 语气：激动震撼（参考 video_track 中的对话动作）,
+  "music_track": 赛车运动，电子合成器 + 强烈鼓点，
   "sync_notes": 轮胎冒烟与白烟视觉同步，过弯与音乐高潮同步
 }'''
 
-        if not requests:
-            raise ImportError("requests库缺失。请在您的ComfyUI环境中运行 'pip install requests' 来安装。")
+    def generate_ltx_prompt(self, Mode_Select, Video_Duration, User_Description, api_provider, random_seed,
+                            Input_Image=None,
+                            SiliconFlow_API_KEY="", siliconflow_model="Qwen3",
+                            User_API_KEY="", custom_url="https://api.siliconflow.cn/v1",
+                            custom_model="gpt_5.2", **kwargs):
+        # Set random seed
+        if random_seed == -1:
+            random_seed = random.randint(0, 0xffffffffffffffff)
+        random.seed(random_seed)
 
-        headers = {"Content-Type": "application/json"}
+        # User description directly from input (no PRO_OPTIONS)
+        full_description = User_Description
 
-        if not api_key or api_key == "必须填入智谱/硅基流动的API":
-            raise ValueError(f"使用「{provider}」服务商时，请在API_KEY字段中填入您的API密钥。")
-
-        # 将时长信息添加到用户提示中
-        prompt_with_duration = f"{prompt} (视频时长要求:{duration_seconds}秒)"
-
-        if provider == "智谱AI":
-            token = self.generate_zhipu_token(api_key)
-            headers["Authorization"] = token
-            # 构建消息，根据模式选择是否包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词：{prompt_with_duration}"}
-            ]
-            
-            # 如果是图生视频模式且提供了图片，则添加图片
-            if mode == "图生视频" and image_base64:
-                messages[1]["content"] = [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词：{prompt_with_duration}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]
-
-            payload = {"model": "glm-4v-plus", "messages": messages, "stream": False}
-            api_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
-        elif provider == "硅基流动":
-            headers["Authorization"] = f"Bearer {api_key}"
-            # 构建消息，根据模式选择是否包含图片
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"根据以下用户描述生成LTX-2音视频同步提示词：{prompt_with_duration}"}
-            ]
-            
-            # 如果是图生视频模式且提供了图片，则添加图片
-            if mode == "图生视频" and image_base64:
-                messages[1]["content"] = [
-                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成LTX-2音视频同步提示词：{prompt_with_duration}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]
-
-            # 根据用户选择的硅基流动模型选择对应的模型
-            model = SILICONFLOW_MODELS.get(siliconflow_model_choice, "Qwen/Qwen-VL-Chat")  # 默认为QwenVL
-            payload = {"messages": messages, "model": model, "stream": False}
-            api_url = "https://api.siliconflow.cn/v1/chat/completions"
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
-
-        return prompt
-
-    def generate_ltx_prompt(self, 模式选择, 视频时长_秒, 用户描述, AI服务商, API_KEY, 随机种子, 图片=None, 硅基流动模型选择="QWENVL", **kwargs):
-        # 设置随机种子
-        if 随机种子 == -1:
-            随机种子 = random.randint(0, 0xffffffffffffffff)
-        random.seed(随机种子)
-
-        # 检查GLM4.7模型与图生视频模式的冲突
-        if 硅基流动模型选择 == "GLM4.7" and 模式选择 == "图生视频":
-            error_msg = "GLM-4.7 只支持文生视频模式，请更换为其他模型"
-            print(f"[NakuNode LTXPrompter] Error: {error_msg}")
-            return (error_msg, f"Error: {error_msg}")
-
-        # 将专业选项融合到用户描述后面，使用逗号分隔
-        parts = [用户描述]
-        for category, options_list in PRO_OPTIONS.items():
-            selected = kwargs.get(category)
-
-            if selected == "无":
-                continue
-            elif selected == "随机":
-                # 从选项列表中排除"随机"和"无"
-                valid_options = [opt for opt in options_list if opt not in ["随机", "无"]]
-                if valid_options:
-                    chosen = random.choice(valid_options)
-                    parts.append(chosen)
-            else:
-                parts.append(selected)
-
-        full_description = "，".join(filter(None, parts))
-
-        # 根据模式选择处理图片
+        # Convert image to base64 if in Image_to_Video mode
         image_base64 = None
-        if 模式选择 == "图生视频":
-            if 图片 is None:
-                raise ValueError("图生视频模式下必须提供图片输入")
-            # 将图片转换为base64
-            image_base64 = self.tensor_to_base64(图片)
-            if not image_base64:
-                raise ValueError("无法处理输入的图片")
+        if Mode_Select == "Image_to_Video":
+            if Input_Image is not None:
+                image_base64 = self.tensor_to_base64(Input_Image)
+                if not image_base64:
+                    raise ValueError("Cannot process input image")
 
-        # 构建请求
-        full_prompt = f"用户描述：{full_description}"
+        # Build request
+        full_prompt = f"User Description: {full_description}"
 
         try:
-            print(f"[NakuNode LTXPrompter] Generating LTX prompt with {AI服务商}, mode: {模式选择}...")
-            # 如果是硅基流动服务商，传递模型选择、模式和时长
-            if AI服务商 == "硅基流动":
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64, 硅基流动模型选择, 模式选择, 视频时长_秒)
+            # Select API settings based on provider
+            if api_provider == "SiliconFlow":
+                api_key = SiliconFlow_API_KEY
             else:
-                optimized_response = self.call_llm_api(AI服务商, API_KEY, full_prompt, image_base64, 硅基流动模型选择, 模式选择, 视频时长_秒)
-            print(f"[NakuNode LTXPrompter] Generated response: {optimized_response}")
+                api_key = User_API_KEY
 
-            # 返回结果 (AI生成提示词, 初始提示词)
+            # Check if API key is provided
+            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key"]:
+                print(f"[NakuNode LTXPrompter] API key not provided, returning user prompt directly")
+                return (full_description, full_description)
+
+            print(f"\n[NakuNode LTXPrompter] {'='*60}")
+            print(f"[NakuNode LTXPrompter] Starting request - API Provider: {api_provider}")
+            print(f"[NakuNode LTXPrompter] {'='*60}")
+            print(f"[NakuNode LTXPrompter] User Description: {full_description[:100]}...")
+            print(f"[NakuNode LTXPrompter] Mode: {Mode_Select}")
+            print(f"[NakuNode LTXPrompter] Video Duration: {Video_Duration} seconds")
+
+            # SiliconFlow model mapping (same as PromptEVO)
+            model_mapping = {
+                "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
+                "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+                "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
+                "GLM": "Pro/zai-org/GLM-4.7",
+                "KIMI": "Pro/moonshotai/Kimi-K2.5"
+            }
+
+            # Custom API model mapping
+            custom_model_mapping = {
+                "gpt_5.2": "gpt-5.2",
+                "gemini_3.1": "gemini-3.1-pro-preview",
+                "Qwen_3.5": "qwen3.5-plus",
+                "Kimi_2.5": "kimi-k2.5"
+            }
+
+            # Select model and print info based on API provider
+            if api_provider == "Custom":
+                selected_model = custom_model_mapping.get(custom_model, "gpt-5.2")
+                api_url = custom_url.rstrip('/')
+                use_stream = False
+                print(f"[NakuNode LTXPrompter] Using Custom API")
+                print(f"[NakuNode LTXPrompter] Custom API URL: {custom_url}")
+                print(f"[NakuNode LTXPrompter] Using Custom API model: {selected_model}")
+            else:
+                selected_model = model_mapping.get(siliconflow_model, "Pro/zai-org/GLM-4.7")
+                api_url = "https://api.siliconflow.cn/v1/chat/completions"
+                use_stream = True
+                print(f"[NakuNode LTXPrompter] Using SiliconFlow API")
+                print(f"[NakuNode LTXPrompter] SiliconFlow URL: https://api.siliconflow.cn/v1/chat/completions")
+                print(f"[NakuNode LTXPrompter] Using SiliconFlow model: {selected_model}")
+
+            print(f"[NakuNode LTXPrompter] Generating LTX prompt with {api_provider}...")
+
+            # Call API using requests library
+            headers = {
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
+
+            # Build complete API URL for Custom
+            if api_provider == "Custom" and not api_url.endswith('/v1/chat/completions'):
+                api_url = api_url + '/v1/chat/completions'
+
+            print(f"[NakuNode LTXPrompter] Request URL: {api_url}")
+            print(f"[NakuNode LTXPrompter] Stream mode: {use_stream}")
+
+            # Build messages - using original system prompt
+            user_content = []
+            if Mode_Select == "Image_to_Video" and image_base64:
+                user_content = [
+                    {"type": "text", "text": f"根据以下用户描述和附带的图片，生成 LTX-2 音视频同步提示词。视频时长要求：{Video_Duration}秒。{full_prompt}"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
+                ]
+            else:
+                user_content = [{"type": "text", "text": f"根据以下用户描述生成 LTX-2 音视频同步提示词。视频时长要求：{Video_Duration}秒。{full_prompt}"}]
+
+            messages = [
+                {"role": "system", "content": self.get_system_prompt()},
+                {"role": "user", "content": user_content}
+            ]
+
+            payload = {
+                "model": selected_model,
+                "messages": messages,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "n": 1,
+                "stream": use_stream,
+                "max_tokens": 4096
+            }
+
+            print(f"[NakuNode LTXPrompter] Sending request...")
+
+            if use_stream:
+                # SiliconFlow stream mode
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=180)
+                print(f"[NakuNode LTXPrompter] HTTP status code: {response.status_code}")
+
+                if response.status_code == 200:
+                    print(f"[NakuNode LTXPrompter] API call successful")
+                    full_content = ""
+                    for chunk in response.iter_lines():
+                        if chunk:
+                            chunk_str = chunk.decode('utf-8').replace('data: ', '')
+                            if chunk_str != "[DONE]" and chunk_str.strip():
+                                try:
+                                    chunk_data = json.loads(chunk_str)
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                    if content:
+                                        full_content += content
+                                except json.JSONDecodeError:
+                                    continue
+                    print(f"[NakuNode LTXPrompter] Stream response received, length: {len(full_content)}")
+                    optimized_response = full_content
+                else:
+                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                    print(error_msg)
+                    return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+            else:
+                # Custom API non-stream mode
+                response = requests.post(api_url, headers=headers, json=payload, timeout=180)
+                print(f"[NakuNode LTXPrompter] HTTP status code: {response.status_code}")
+
+                if response.status_code == 200:
+                    print(f"[NakuNode LTXPrompter] API call successful")
+                    response_data = response.json()
+
+                    # Parse response
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        optimized_response = response_data['choices'][0]['message']['content']
+                        print(f"[NakuNode LTXPrompter] API response: {optimized_response[:100]}...")
+                    else:
+                        error_msg = f"API response format error: {response_data}"
+                        print(error_msg)
+                        return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                else:
+                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                    print(error_msg)
+                    return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+
+            print(f"[NakuNode LTXPrompter] Generated response received")
+
+            # Return result (AI Generated Prompt, Initial Prompt)
             return (optimized_response, full_description)
+        except requests.exceptions.Timeout:
+            error_msg = "API request timeout"
+            print(error_msg)
+            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+        except requests.exceptions.RequestException as e:
+            error_msg = f"HTTP request failed: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
         except Exception as e:
-            print(f"[NakuNode LTXPrompter] Error during LLM processing: {e}")
-            # 发生错误时返回融合后的描述
-            return (f"处理错误: {e}. 原始描述: {full_description}", f"Processing Error: {e}. Original: {full_description}")
+            print(f"[NakuNode LTXPrompter] Error during API call: {e}")
+            import traceback
+            traceback.print_exc()
+            return (f"Error: {str(e)}. Original: {full_description}", f"Error: {str(e)}")
 
 
-# --- 注册节点到 ComfyUI ---
+# --- Register node to ComfyUI ---
 NODE_CLASS_MAPPINGS = {
     "NakuNodeLTXPrompter": NakuNodeLTXPrompter
 }
