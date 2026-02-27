@@ -26,6 +26,7 @@
 - 🌐 **双语支持** - 完整的中英文界面和提示词输出
 - 🎯 **可视化构建器** - 通过前端界面快速构建专业提示词
 - 📸 **多图参考** - 支持单图、双图、多图等多种参考模式
+- 🔑 **API KEY分离存储** - API KEY本地加密存储，避免分享工作流导致API KEY的外泄
 
 ---
 
@@ -99,16 +100,7 @@
 - 支持 SiliconFlow 和 Custom API
 - 结构化输出格式
 
-### 🛠️ 工具节点 | Utility Nodes
-
-#### 9. NakuNode-文本编辑节点 | NakuNodeTextEditor
-**功能**: 文本编辑工具节点  
-**Function**: Text editing utility node
-
-- 支持工作流中修改提示词
-- 持久化存储编辑内容
-
-#### 10. NakuNode-视频参数 | NakuNode_VideoParameters
+#### 9. NakuNode-视频参数 | NakuNode_VideoParameters
 **功能**: 视频制作参数设计节点  
 **Function**: Video production parameter design node
 
@@ -223,6 +215,7 @@ pip install -r requirements.txt
 
 ## 📝 更新日志 | Changelog
 
+### V。1 - API KEY分离加密存储机制 ｜ 0228
 ### V1.0 - 初始版本 | Initial Release
 
 ---

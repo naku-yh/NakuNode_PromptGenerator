@@ -4,49 +4,61 @@ import json
 from PIL import Image
 import io
 import base64
+import urllib3
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     import requests
 except ImportError:
     requests = None
 
+# Import API utils
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from api_utils import get_api_credentials, parse_api_string_for_node
+
 SILICONFLOW_MODELS = {
-    "QWENVL": "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "GLM": "zai-org/GLM-4.6V",
-    "KIMI": "Pro/moonshotai/Kimi-K2.5"
+    "QWEN3VL": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+    "GLM4.6V": "zai-org/GLM-4.6V",
+    "KIMI2.5": "Pro/moonshotai/Kimi-K2.5"
 }
 
 CUSTOM_MODELS = {
-    "gpt_5.2": "gpt-5.2",
-    "gemini_3.1": "gemini-3.1-pro-preview",
-    "Qwen_3.5": "qwen3.5-plus",
-    "Kimi_2.5": "kimi-k2.5"
+    "GPT5.2": "gpt-5.2",
+    "Gemini Pro 3.1": "gemini-3.1-pro-preview",
+    "Gemini Pro 3": "gemini-3-pro-preview",
+    "Claude Opus 4.6": "claude-opus-4-6",
+    "Kimi 2.5": "kimi-k2.5"
 }
 
 
 class StoryboardImageGenerator:
     @classmethod
     def INPUT_TYPES(s):
-        provider_list = ["SiliconFlow", "Custom"]
         return {
             "required": {
-                "storyboard_desc": ("STRING", {"multiline": True, "default": "请输入详细的剧本描述"}),
                 "storyboard_count": ("INT", {"default": 3, "min": 1, "max": 12}),
-                "api_provider": (provider_list, {"default": "SiliconFlow"}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+                "storyboard_desc": ("STRING", {"multiline": True, "default": "请输入详细的剧本描述"}),
             },
             "optional": {
+                "api_provider": (["SiliconFlow", "Custom"], {"default": "SiliconFlow"}),
+                "siliconflow_model": (["QWEN3VL", "GLM4.6V", "KIMI2.5"], {"default": "QWEN3VL"}),
+                "custom_model": (["GPT5.2", "Gemini Pro 3.1", "Gemini Pro 3", "Claude Opus 4.6", "Kimi 2.5"], {"default": "GPT5.2"}),
+                "api_string": ("STRING", {
+                    "multiline": False,
+                    "default": "",
+                    "placeholder": "连接 API Setting 节点"
+                }),
                 "image_1": ("IMAGE", {}),
                 "image_2": ("IMAGE", {}),
                 "image_3": ("IMAGE", {}),
                 "image_4": ("IMAGE", {}),
                 "image_5": ("IMAGE", {}),
                 "image_6": ("IMAGE", {}),
-                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "请填写 SiliconFlow API Key"}),
-                "User_API_KEY": ("STRING", {"multiline": False, "default": "请填写您的 API Key"}),
-                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
-                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
-                "siliconflow_model": (["QWENVL", "GLM", "KIMI"], {"default": "QWENVL"}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -142,16 +154,14 @@ Next Scene：...
 # Action
 请执行生成，确保结果紧凑无空行。"""
 
-    def generate_storyboard(self, storyboard_desc, storyboard_count, api_provider, seed, image_1=None, image_2=None, image_3=None, image_4=None, image_5=None, image_6=None, SiliconFlow_API_KEY=None, User_API_KEY=None, custom_url="https://api.siliconflow.cn/v1", custom_model="gpt_5.2", siliconflow_model="QWENVL", **kwargs):
+    def generate_storyboard(self, storyboard_desc, storyboard_count, api_string, seed, image_1=None, image_2=None, image_3=None, image_4=None, image_5=None, image_6=None, siliconflow_model="QWENVL", custom_model="gpt_5.2", api_provider="SiliconFlow", **kwargs):
         # Debug 输出 - 默认开启，前缀 [NakuNode]
         print(f"\n[NakuNode Storyboard] ========================================")
         print(f"[NakuNode Storyboard] 开始生成分镜")
-        print(f"[NakuNode Storyboard] AI 服务商：{api_provider}")
         print(f"[NakuNode Storyboard] 分镜数量：{storyboard_count}")
         print(f"[NakuNode Storyboard] 随机种子：{seed}")
         print(f"[NakuNode Storyboard] SiliconFlow 模型：{siliconflow_model}")
         print(f"[NakuNode Storyboard] Custom 模型：{custom_model}")
-        print(f"[NakuNode Storyboard] Custom URL: {custom_url}")
         print(f"[NakuNode Storyboard] 剧本描述：{storyboard_desc[:100]}...")
         image_count = sum(1 for img in [image_1, image_2, image_3, image_4, image_5, image_6] if img is not None)
         print(f"[NakuNode Storyboard] 输入图片数量：{image_count}")
@@ -173,17 +183,22 @@ Next Scene：...
         system_prompt = self.get_system_prompt(storyboard_count)
         user_prompt = f"根据以下用户描述和附带的图片，生成分镜提示词：{storyboard_desc}"
 
-        if api_provider == "SiliconFlow":
-            api_key = SiliconFlow_API_KEY
-        else:
-            api_key = User_API_KEY
+        # Parse API String and get credentials
+        parse_api_string_for_node(api_string, "NakuNode Storyboard")
+        api_provider, api_key, api_url, sf_key, c_key, c_url = get_api_credentials(api_string, preferred_provider=api_provider)
 
-        if not api_key or api_key in ["请填写 SiliconFlow API Key", "请填写您的 API Key"]:
+        # Print API provider info
+        print(f"[NakuNode Storyboard] API Provider: {api_provider}")
+        print(f"[NakuNode Storyboard] SiliconFlow API Key: {'已设置' if sf_key else '未设置'}")
+        print(f"[NakuNode Storyboard] Custom API Key: {'已设置' if c_key else '未设置'}")
+        print(f"[NakuNode Storyboard] Custom API URL: {c_url}")
+
+        if not api_key or api_key in ["请填写 SiliconFlow API Key", "请填写您的 API Key", ""]:
             print(f"[NakuNode Storyboard] API Key 未填写，返回基础提示词")
             return (user_prompt, user_prompt)
 
         print(f"[NakuNode Storyboard] 开始调用 API...")
-        result = self.call_multi_image_api(image_base64_list, user_prompt, api_key, api_provider, custom_url, custom_model, siliconflow_model, system_prompt)
+        result = self.call_multi_image_api(image_base64_list, user_prompt, api_key, api_provider, c_url, custom_model, siliconflow_model, system_prompt)
         
         print(f"[NakuNode Storyboard] API 调用完成")
         print(f"[NakuNode Storyboard] 返回结果长度：{len(result)}\n")
@@ -205,11 +220,14 @@ Next Scene：...
         if api_provider == "Custom":
             selected_model = CUSTOM_MODELS.get(custom_model, "gpt-5.2")
             api_url = custom_url.rstrip('/')
+            # 构建完整的 API URL
+            if not api_url.endswith('/v1/chat/completions'):
+                api_url = api_url + '/v1/chat/completions'
             use_stream = False  # Custom API 不使用流式
             print(f"[NakuNode Storyboard] 使用 Custom API: {selected_model}")
             print(f"[NakuNode Storyboard] Custom URL: {custom_url}")
         else:
-            selected_model = SILICONFLOW_MODELS.get(siliconflow_model, "Qwen/Qwen3-VL-30B-A3B-Instruct")
+            selected_model = SILICONFLOW_MODELS.get(siliconflow_model, "Qwen/Qwen3-VL-235B-A22B-Instruct")
             api_url = "https://api.siliconflow.cn/v1/chat/completions"  # 直接包含完整路径
             use_stream = True  # SiliconFlow 使用流式模式
             print(f"[NakuNode Storyboard] 使用 SiliconFlow API: {selected_model}")
@@ -225,7 +243,7 @@ Next Scene：...
             
             if use_stream:
                 # SiliconFlow 流式模式处理
-                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120)
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120, verify=False)
                 print(f"[NakuNode Storyboard] HTTP 状态码：{response.status_code}")
 
                 if response.status_code == 200:
@@ -248,7 +266,7 @@ Next Scene：...
                     return f"Error: {response.status_code} - {response.text[:200]}"
             else:
                 # Custom API 非流式模式处理
-                response = requests.post(api_url, headers=headers, json=payload, timeout=120)
+                response = requests.post(api_url, headers=headers, json=payload, timeout=120, verify=False)
                 print(f"[NakuNode Storyboard] HTTP 状态码：{response.status_code}")
 
                 if response.status_code == 200:

@@ -1,0 +1,7 @@
+{
+  "999": {
+    "siliconflow_api_key": "test_sk_12345",
+    "custom_api_key": "",
+    "custom_api_url": "https://api.siliconflow.cn/v1"
+  }
+}

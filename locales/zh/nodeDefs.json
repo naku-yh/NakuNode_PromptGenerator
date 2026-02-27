@@ -1,7 +1,12 @@
 {
+  "NakuNode_APISetting": {
+    "display_name": "NakuNode-API 设置",
+    "description": "API 密钥加密存储节点，用于安全管理和分享工作流，防止 API Key 明文泄露。点击 ⚙️ API 设置 按钮配置 API Key。",
+    "inputs": {}
+  },
   "NakuNodePromptEVO": {
     "display_name": "NakuNode-提示词进化器",
-    "description": "高级提示词生成器 - 支持 Qwen/Zimage 和 Flux.2 模型，集成 SiliconFlow 和 Custom API 服务",
+    "description": "高级提示词生成器 - 支持 Qwen/Zimage 和 Flux.2 模型，必须连接 API Setting 节点使用",
     "inputs": {
       "text_request": {
         "name": "文本请求",
@@ -11,9 +16,13 @@
         "name": "AI 模型",
         "tooltip": "选择 AI 模型：Qwen/Zimage 用于人像设计，Flux.2 用于通用图像生成"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商：SiliconFlow 或 Custom 自定义 API"
+        "tooltip": "选择优先使用的 API 提供商：SiliconFlow 或 Custom"
       },
       "seed": {
         "name": "随机种子",
@@ -23,21 +32,9 @@
         "name": "额外提示词",
         "tooltip": "额外的提示词参数，格式：摄影参数。人物参数。场景参数"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入您的 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 平台的模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入您的自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -47,7 +44,7 @@
   },
   "ImageVideoPromptOptimizer": {
     "display_name": "NakuNode-单图视频提示词生成器",
-    "description": "基于单张图片生成专业的视频提示词，支持 SiliconFlow 和 Custom API",
+    "description": "基于单张图片生成专业的视频提示词，必须连接 API Setting 节点使用",
     "inputs": {
       "image": {
         "name": "输入图片",
@@ -57,29 +54,21 @@
         "name": "用户描述",
         "tooltip": "请输入您的视频生成需求描述"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "random_seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -89,35 +78,27 @@
   },
   "ProfessionalVideoPromptGenerator": {
     "display_name": "NakuNode-专业视频提示词润色器",
-    "description": "专业的视频提示词润色工具，生成中文和英文两个版本的优化提示词",
+    "description": "专业的视频提示词润色工具，生成中文和英文两个版本的优化提示词，必须连接 API Setting 节点使用",
     "inputs": {
       "User_Description": {
         "name": "用户描述",
         "tooltip": "请输入您的视频描述，将生成专业的中英文提示词"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "random_seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -127,7 +108,7 @@
   },
   "DualImageVideoScriptGenerator": {
     "display_name": "NakuNode-首尾帧视频提示词生成器",
-    "description": "基于首尾两张图片生成连贯的视频分镜脚本，支持自定义视频时长",
+    "description": "基于首尾两张图片生成连贯的视频分镜脚本，支持自定义视频时长，必须连接 API Setting 节点使用",
     "inputs": {
       "起始图片": {
         "name": "起始图片",
@@ -145,29 +126,21 @@
         "name": "视频时长 (秒)",
         "tooltip": "视频时长，范围 1-60 秒"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "random_seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -177,7 +150,7 @@
   },
   "NakuNodeLTXPrompter": {
     "display_name": "NakuNode-LTX 视频提示词生成器",
-    "description": "专为 LTX Video 模型设计的提示词生成器，支持文生视频和图生视频模式",
+    "description": "专为 LTX Video 模型设计的提示词生成器，支持文生视频和图生视频模式，必须连接 API Setting 节点使用",
     "inputs": {
       "Mode_Select": {
         "name": "模式选择",
@@ -195,29 +168,21 @@
         "name": "输入图片",
         "tooltip": "图生视频模式下需要输入参考图片"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "random_seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -227,7 +192,7 @@
   },
   "NakuNode_LTX_FTE_Prompter": {
     "display_name": "NakuNode-LTX 首尾帧提示词生成器",
-    "description": "基于首尾帧图片生成 LTX Video 专用的音视频同步提示词",
+    "description": "基于首尾帧图片生成 LTX Video 专用的音视频同步提示词，必须连接 API Setting 节点使用",
     "inputs": {
       "First_Frame_Image": {
         "name": "首帧图片",
@@ -245,29 +210,21 @@
         "name": "用户描述",
         "tooltip": "请输入视频描述"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "random_seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
       "siliconflow_model": {
         "name": "SiliconFlow 模型",
         "tooltip": "选择 SiliconFlow 模型"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
       },
       "custom_model": {
         "name": "自定义模型",
@@ -277,7 +234,7 @@
   },
   "NakuNode_分镜图片生成": {
     "display_name": "NakuNode-分镜图片生成器",
-    "description": "多图片分镜脚本生成器，支持最多 6 张参考图片，使用好莱坞电影语法",
+    "description": "多图片分镜脚本生成器，支持最多 6 张参考图片，使用好莱坞电影语法，必须连接 API Setting 节点使用",
     "inputs": {
       "storyboard_desc": {
         "name": "分镜描述",
@@ -287,9 +244,13 @@
         "name": "分镜数量",
         "tooltip": "生成的分镜数量，范围 1-12"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "seed": {
         "name": "随机种子",
@@ -319,41 +280,19 @@
         "name": "图片 6",
         "tooltip": "参考图片 6"
       },
-      "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
-      },
-      "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
-      },
-      "custom_url": {
-        "name": "自定义 API 地址",
-        "tooltip": "自定义 API 服务地址"
+      "siliconflow_model": {
+        "name": "SiliconFlow 模型",
+        "tooltip": "选择 SiliconFlow 模型"
       },
       "custom_model": {
         "name": "自定义模型",
         "tooltip": "选择自定义 API 模型"
-      },
-      "siliconflow_model": {
-        "name": "SiliconFlow 模型",
-        "tooltip": "选择 SiliconFlow 模型"
-      }
-    }
-  },
-  "NakuNodeTextEditor": {
-    "display_name": "NakuNode-文本编辑节点",
-    "description": "文本编辑工具节点，支持在工作流中修改提示词文本",
-    "inputs": {
-      "text_input": {
-        "name": "输入文本",
-        "tooltip": "输入需要编辑的文本"
       }
     }
   },
   "NakuNodeImagePrompter": {
     "display_name": "NakuNode-图片描述生成器",
-    "description": "基于图片生成客观的描述提示词，支持 SiliconFlow 和 Custom API",
+    "description": "基于图片生成客观的描述提示词，必须连接 API Setting 节点使用",
     "inputs": {
       "image": {
         "name": "输入图片",
@@ -363,21 +302,29 @@
         "name": "文字需求",
         "tooltip": "对图片描述的具体需求或补充说明"
       },
+      "api_string": {
+        "name": "API 字符串",
+        "tooltip": "必须连接 API Setting 节点的输出"
+      },
       "api_provider": {
         "name": "API 提供商",
-        "tooltip": "选择 API 服务提供商"
+        "tooltip": "选择优先使用的 API 提供商"
       },
       "seed": {
         "name": "随机种子",
         "tooltip": "随机种子，-1 表示随机"
       },
+      "api_provider": {
+        "name": "API 提供商",
+        "tooltip": "选择 API 服务提供商"
+      },
       "SiliconFlow_API_KEY": {
-        "name": "SiliconFlow API 密钥",
-        "tooltip": "请输入 SiliconFlow API 密钥"
+        "name": "SiliconFlow API 密钥 (可选)",
+        "tooltip": "请输入 SiliconFlow API 密钥，如使用 API String 可留空"
       },
       "User_API_KEY": {
-        "name": "自定义 API 密钥",
-        "tooltip": "请输入自定义 API 密钥"
+        "name": "自定义 API 密钥 (可选)",
+        "tooltip": "请输入自定义 API 密钥，如使用 API String 可留空"
       },
       "custom_url": {
         "name": "自定义 API 地址",

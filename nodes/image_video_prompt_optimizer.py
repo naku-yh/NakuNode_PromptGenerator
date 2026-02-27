@@ -2,11 +2,16 @@
 """
 NakuNode - Single Image Video Prompt Optimizer
 Modified to match PromptEVO API logic
+Added API String support for encrypted API key storage
 """
 import random
 import json
 import io
 import base64
+import urllib3
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     from PIL import Image
@@ -18,6 +23,12 @@ try:
 except ImportError:
     requests = None
 
+# Import API utils
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from api_utils import get_api_credentials, parse_api_string_for_node
+
 
 class ImageVideoPromptOptimizer:
     """
@@ -26,24 +37,21 @@ class ImageVideoPromptOptimizer:
 
     @classmethod
     def INPUT_TYPES(s):
-        # Create AI provider list - SiliconFlow and Custom (same as PromptEVO)
-        provider_list = ["SiliconFlow", "Custom"]
-
         inputs = {
             "required": {
                 "image": ("IMAGE", {}),
                 "user_prompt": ("STRING", {"multiline": True, "default": "A cute cat playing on the grass"}),
-                "api_provider": (provider_list, {"default": "SiliconFlow"}),
-                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             },
             "optional": {
-                # SiliconFlow API settings
-                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "Please enter SiliconFlow API Key"}),
-                "siliconflow_model": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),
-                # Custom API settings
-                "User_API_KEY": ("STRING", {"multiline": False, "default": "Please enter your API Key"}),
-                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
-                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
+                "api_provider": (["SiliconFlow", "Custom"], {"default": "SiliconFlow"}),
+                "siliconflow_model": (["QWEN3VL", "GLM4.6V", "KIMI2.5"], {"default": "QWEN3VL"}),
+                "custom_model": (["GPT5.2", "Gemini Pro 3.1", "Gemini Pro 3", "Claude Opus 4.6", "Kimi 2.5"], {"default": "GPT5.2"}),
+                "api_string": ("STRING", {
+                    "multiline": False,
+                    "default": "",
+                    "placeholder": "连接 API Setting 节点"
+                }),
+                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -167,10 +175,8 @@ class ImageVideoPromptOptimizer:
 增强细节：光线、色彩、特效、情绪氛围。
 特别注意：确保镜头与镜头之间的衔接流畅，不能出现例如「手持跟拍轨道推进」这种不合理的运镜方式，因为手持跟拍是有抖动的，轨道推进是平滑的。最终输出一段中文的自然语言，不能换行，不能在段头和段尾增加意义不明的符号，提示词以：中文提示词/... 这样的格式输出。例如：中文提示词/一位身穿红色西装外套的女性..."""
 
-    def optimize_prompt(self, image, user_prompt, api_provider, random_seed,
-                        SiliconFlow_API_KEY="", siliconflow_model="Qwen3",
-                        User_API_KEY="", custom_url="https://api.siliconflow.cn/v1",
-                        custom_model="gpt_5.2", **kwargs):
+    def optimize_prompt(self, image, user_prompt, api_string, random_seed,
+                        siliconflow_model="Qwen3", custom_model="gpt_5.2", api_provider="SiliconFlow", **kwargs):
         # Set random seed
         if random_seed == -1:
             random_seed = random.randint(0, 0xffffffffffffffff)
@@ -181,53 +187,56 @@ class ImageVideoPromptOptimizer:
         if not image_base64:
             raise ValueError("Cannot process input image")
 
+        # Parse API String and get credentials
+        parse_api_string_for_node(api_string, "NakuNode ImageOptimizer")
+        api_provider, api_key, api_url, sf_key, c_key, c_url = get_api_credentials(api_string, preferred_provider=api_provider)
+
         # Build full prompt
         full_prompt = f"用户描述：{user_prompt}"
 
         try:
-            # Select API settings based on provider
-            if api_provider == "SiliconFlow":
-                api_key = SiliconFlow_API_KEY
-            else:
-                api_key = User_API_KEY
-
-            # Check if API key is provided
-            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key"]:
+            # Check if API key is provided (using parsed credentials)
+            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key", ""]:
                 print(f"[NakuNode ImageOptimizer] API key not provided, returning user prompt directly")
                 return (user_prompt, user_prompt)
 
+            # Print API provider info
+            print(f"[NakuNode ImageOptimizer] API Provider: {api_provider}")
+            print(f"[NakuNode ImageOptimizer] SiliconFlow API Key: {'已设置' if sf_key else '未设置'}")
+            print(f"[NakuNode ImageOptimizer] Custom API Key: {'已设置' if c_key else '未设置'}")
+            print(f"[NakuNode ImageOptimizer] Custom API URL: {c_url}")
+
             print(f"\n[NakuNode ImageOptimizer] {'='*60}")
-            print(f"[NakuNode ImageOptimizer] Starting request - API Provider: {api_provider}")
+            print(f"[NakuNode ImageOptimizer] Starting request...")
             print(f"[NakuNode ImageOptimizer] {'='*60}")
             print(f"[NakuNode ImageOptimizer] User Prompt: {user_prompt[:100]}...")
 
-            # SiliconFlow model mapping (same as PromptEVO)
+            # SiliconFlow model mapping for image analysis
             model_mapping = {
-                "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
-                "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-                "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
-                "GLM": "Pro/zai-org/GLM-4.7",
-                "KIMI": "Pro/moonshotai/Kimi-K2.5"
+                "QWEN3VL": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+                "GLM4.6V": "zai-org/GLM-4.6V",
+                "KIMI2.5": "Pro/moonshotai/Kimi-K2.5"
             }
 
             # Custom API model mapping
             custom_model_mapping = {
-                "gpt_5.2": "gpt-5.2",
-                "gemini_3.1": "gemini-3.1-pro-preview",
-                "Qwen_3.5": "qwen3.5-plus",
-                "Kimi_2.5": "kimi-k2.5"
+                "GPT5.2": "gpt-5.2",
+                "Gemini Pro 3.1": "gemini-3.1-pro-preview",
+                "Gemini Pro 3": "gemini-3-pro-preview",
+                "Claude Opus 4.6": "claude-opus-4-6",
+                "Kimi 2.5": "kimi-k2.5"
             }
 
             # Select model and print info based on API provider
             if api_provider == "Custom":
                 selected_model = custom_model_mapping.get(custom_model, "gpt-5.2")
-                api_url = custom_url.rstrip('/')
+                api_url = c_url.rstrip('/')
                 use_stream = False
                 print(f"[NakuNode ImageOptimizer] Using Custom API")
-                print(f"[NakuNode ImageOptimizer] Custom API URL: {custom_url}")
+                print(f"[NakuNode ImageOptimizer] Custom API URL: {c_url}")
                 print(f"[NakuNode ImageOptimizer] Using Custom API model: {selected_model}")
             else:
-                selected_model = model_mapping.get(siliconflow_model, "Pro/zai-org/GLM-4.7")
+                selected_model = model_mapping.get(siliconflow_model, "Qwen/Qwen3-VL-235B-A22B-Instruct")
                 api_url = "https://api.siliconflow.cn/v1/chat/completions"
                 use_stream = True
                 print(f"[NakuNode ImageOptimizer] Using SiliconFlow API")
@@ -243,7 +252,7 @@ class ImageVideoPromptOptimizer:
                 'Content-Type': 'application/json'
             }
 
-            # Build complete API URL for Custom
+            # Build complete API URL for Custom (using parsed c_url)
             if api_provider == "Custom" and not api_url.endswith('/v1/chat/completions'):
                 api_url = api_url + '/v1/chat/completions'
 
@@ -270,7 +279,7 @@ class ImageVideoPromptOptimizer:
 
             if use_stream:
                 # SiliconFlow stream mode
-                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120)
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120, verify=False)
                 print(f"[NakuNode ImageOptimizer] HTTP status code: {response.status_code}")
 
                 if response.status_code == 200:
@@ -295,26 +304,57 @@ class ImageVideoPromptOptimizer:
                     print(error_msg)
                     return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
             else:
-                # Custom API non-stream mode
-                response = requests.post(api_url, headers=headers, json=payload, timeout=120)
-                print(f"[NakuNode ImageOptimizer] HTTP status code: {response.status_code}")
+                # Custom API non-stream mode - 添加重试机制
+                max_retries = 3
+                retry_delay = 2  # 秒
+                response = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        print(f"[NakuNode ImageOptimizer] Sending request (attempt {attempt + 1}/{max_retries})...")
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=120, verify=False)
+                        print(f"[NakuNode ImageOptimizer] HTTP status code: {response.status_code}")
 
-                if response.status_code == 200:
-                    print(f"[NakuNode ImageOptimizer] API call successful")
-                    response_data = response.json()
+                        if response.status_code == 200:
+                            print(f"[NakuNode ImageOptimizer] API call successful")
+                            response_data = response.json()
 
-                    # Parse response
-                    if 'choices' in response_data and len(response_data['choices']) > 0:
-                        optimized_response = response_data['choices'][0]['message']['content']
-                        print(f"[NakuNode ImageOptimizer] API response: {optimized_response[:100]}...")
-                    else:
-                        error_msg = f"API response format error: {response_data}"
+                            # Parse response
+                            if 'choices' in response_data and len(response_data['choices']) > 0:
+                                optimized_response = response_data['choices'][0]['message']['content']
+                                print(f"[NakuNode ImageOptimizer] API response: {optimized_response[:100]}...")
+                                break
+                            else:
+                                error_msg = f"API response format error: {response_data}"
+                                print(error_msg)
+                                return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
+                        else:
+                            error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                            print(error_msg)
+                            # 如果是服务器错误（5xx），尝试重试
+                            if response.status_code >= 500 and attempt < max_retries - 1:
+                                print(f"[NakuNode ImageOptimizer] Server error, retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                                continue
+                            return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
+                    except requests.exceptions.ConnectionError as e:
+                        print(f"[NakuNode ImageOptimizer] Connection error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                        if attempt < max_retries - 1:
+                            print(f"[NakuNode ImageOptimizer] Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2  # 指数退避
+                        else:
+                            error_msg = f"Connection failed after {max_retries} attempts: {str(e)}"
+                            print(error_msg)
+                            return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
+                    except requests.exceptions.Timeout:
+                        error_msg = "API request timeout"
                         print(error_msg)
                         return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
-                else:
-                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
-                    print(error_msg)
-                    return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
+                    except Exception as e:
+                        error_msg = f"Unexpected error: {str(e)}"
+                        print(error_msg)
+                        return (f"Optimization Error: {error_msg}. Original: {user_prompt}", f"Error: {error_msg}")
 
             print(f"[NakuNode ImageOptimizer] Optimized response received")
 

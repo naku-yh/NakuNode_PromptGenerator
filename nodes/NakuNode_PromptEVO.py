@@ -4,6 +4,11 @@ import json
 import time
 import io
 import base64
+import urllib3
+import ssl
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 尝试导入必要的库，如果失败则在调用时抛出更友好的错误
 try:
@@ -15,6 +20,12 @@ try:
     import requests
 except ImportError:
     requests = None
+
+# Import API utils
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from api_utils import get_api_credentials, parse_api_string_for_node
 
 try:
     import jwt
@@ -50,23 +61,22 @@ class NakuNodePromptEVO:
         # Create AI model selection list
         model_list = ["Qwen/Zimage", "Flux.2"]
 
-        # Create API provider list
-        provider_list = ["SiliconFlow", "Custom"]
-
         inputs = {
             "required": {
-                "text_request": ("STRING", {"multiline": True, "default": "Please enter your image generation request"}),
                 "ai_model": (model_list, {"default": "Qwen/Zimage"}),
-                "api_provider": (provider_list, {"default": "SiliconFlow"}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+                "text_request": ("STRING", {"multiline": True, "default": "Please enter your image generation request"}),
             },
             "optional": {
+                "api_provider": (["SiliconFlow", "Custom"], {"default": "SiliconFlow"}),
+                "siliconflow_model": (["MiniMax2.5", "GLM5", "DeepSeek3.2", "Kimi K2"], {"default": "MiniMax2.5"}),
+                "custom_model": (["GPT5.2", "Gemini Pro 3.1", "Gemini Pro 3", "Claude Opus 4.6", "Qwen 3.5", "Kimi 2.5"], {"default": "GPT5.2"}),
+                "api_string": ("STRING", {
+                    "multiline": False,
+                    "default": "",
+                    "placeholder": "连接 API Setting 节点"
+                }),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
                 "extra_prompts": ("STRING", {"multiline": False, "default": ""}),
-                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "Please enter SiliconFlow API Key"}),
-                "User_API_KEY": ("STRING", {"multiline": False, "default": "Please enter your API Key"}),
-                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
-                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
-                "siliconflow_model": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),
             }
         }
 
@@ -77,14 +87,15 @@ class NakuNodePromptEVO:
     FUNCTION = "generate_prompt"
     CATEGORY = "NakuNode/Prompt Generation"
 
-    def generate_prompt(self, text_request, ai_model, api_provider, seed, extra_prompts="", SiliconFlow_API_KEY=None, User_API_KEY=None, custom_url="https://api.siliconflow.cn/v1", siliconflow_model="Qwen3", custom_model="gpt_5.2", **kwargs):
+    def generate_prompt(self, text_request, ai_model, api_string, seed,
+                        extra_prompts="", siliconflow_model="Qwen3", custom_model="gpt_5.2", api_provider="SiliconFlow", **kwargs):
         # Set random seed
         if seed == -1:
             seed = random.randint(0, 0xffffffffffffffff)
         random.seed(seed)
 
         print(f"\n{'='*60}")
-        print(f"[NakuNode-Prompt] Starting request - API Provider: {api_provider}, AI Model: {ai_model}")
+        print(f"[NakuNode-Prompt] Starting request - AI Model: {ai_model}")
         print(f"{'='*60}")
         print(f"[NakuNode-Prompt] Text Request: {text_request}")
         print(f"[NakuNode-Prompt] Extra Prompts: {extra_prompts}")
@@ -128,13 +139,17 @@ class NakuNodePromptEVO:
         print(f"[NakuNode-Prompt] User Prompt: {user_prompt[:100]}...")
 
         # Select API key based on provider
-        if api_provider == "SiliconFlow":
-            api_key = SiliconFlow_API_KEY
-        else:
-            api_key = User_API_KEY
+        parse_api_string_for_node(api_string, "NakuNode PromptEVO")
+        api_provider, api_key, api_url, sf_key, c_key, c_url = get_api_credentials(api_string, preferred_provider=api_provider)
+        
+        # Print API provider info
+        print(f"[NakuNode-Prompt] API Provider: {api_provider}")
+        print(f"[NakuNode-Prompt] SiliconFlow API Key: {'已设置' if sf_key else '未设置'}")
+        print(f"[NakuNode-Prompt] Custom API Key: {'已设置' if c_key else '未设置'}")
+        print(f"[NakuNode-Prompt] Custom API URL: {c_url}")
 
         # Decide whether to call API based on API provider and model selection
-        if not api_key or api_key == "Please enter SiliconFlow API Key" or api_key == "Please enter your API Key":
+        if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key", ""]:
             # Do not call API, directly return user input text with extra prompts
             print("[NakuNode-Prompt] API key is empty or not filled, returning user request directly")
             return (enhanced_text_request,)
@@ -149,31 +164,33 @@ class NakuNodePromptEVO:
 
             # SiliconFlow model mapping
             model_mapping = {
-                "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
-                "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-                "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
-                "GLM": "Pro/zai-org/GLM-4.7",
-                "KIMI": "Pro/moonshotai/Kimi-K2.5"
+                "MiniMax2.5": "Pro/MiniMaxAI/MiniMax-M2.5",
+                "GLM5": "Pro/zai-org/GLM-5",
+                "DeepSeek3.2": "Pro/deepseek-ai/DeepSeek-V3.2",
+                "Kimi K2": "Pro/moonshotai/Kimi-K2-Thinking"
             }
 
             # Custom API model mapping
             custom_model_mapping = {
-                "gpt_5.2": "gpt-5.2",
-                "gemini_3.1": "gemini-3.1-pro-preview",
-                "Qwen_3.5": "qwen3.5-plus",
-                "Kimi_2.5": "kimi-k2.5"
+                "GPT5.2": "gpt-5.2",
+                "Gemini Pro 3.1": "gemini-3.1-pro-preview",
+                "Gemini Pro 3": "gemini-3-pro-preview",
+                "Claude Opus 4.6": "claude-opus-4-6",
+                "Qwen 3.5": "qwen3.5-plus",
+                "Kimi 2.5": "kimi-k2.5"
             }
 
             # Select model and print info based on API provider
             if api_provider == "Custom":
                 selected_model = custom_model_mapping.get(custom_model, "gpt-5.2")
-                api_url = custom_url.rstrip('/')
+                # 使用解析后的 c_url 而不是原始的 custom_url 参数
+                api_url = c_url.rstrip('/')
                 use_stream = False
                 print(f"[NakuNode-Prompt] Using Custom API")
-                print(f"[NakuNode-Prompt] Custom API URL: {custom_url}")
+                print(f"[NakuNode-Prompt] Custom API URL: {c_url}")
                 print(f"[NakuNode-Prompt] Using Custom API model: {selected_model}")
             else:
-                selected_model = model_mapping.get(siliconflow_model, "Pro/zai-org/GLM-4.7")
+                selected_model = model_mapping.get(siliconflow_model, "Pro/MiniMaxAI/MiniMax-M2.5")
                 api_url = "https://api.siliconflow.cn/v1/chat/completions"
                 use_stream = True
                 print(f"[NakuNode-Prompt] Using SiliconFlow API")
@@ -221,7 +238,7 @@ class NakuNodePromptEVO:
                 
                 if use_stream:
                     # SiliconFlow stream mode
-                    response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=60)
+                    response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=60, verify=False)
                     print(f"[NakuNode-Prompt] HTTP status code: {response.status_code}")
 
                     if response.status_code == 200:
@@ -246,27 +263,57 @@ class NakuNodePromptEVO:
                         print(error_msg)
                         return (error_msg,)
                 else:
-                    # Custom API non-stream mode
-                    response = requests.post(api_url, headers=headers, json=payload, timeout=60)
-                    print(f"[NakuNode-Prompt] HTTP status code: {response.status_code}")
+                    # Custom API non-stream mode - 添加重试机制
+                    max_retries = 3
+                    retry_delay = 2  # 秒
+                    response = None
+                    
+                    for attempt in range(max_retries):
+                        try:
+                            print(f"[NakuNode-Prompt] Sending request (attempt {attempt + 1}/{max_retries})...")
+                            response = requests.post(api_url, headers=headers, json=payload, timeout=60, verify=False)
+                            print(f"[NakuNode-Prompt] HTTP status code: {response.status_code}")
 
-                    if response.status_code == 200:
-                        print("[NakuNode-Prompt] API call successful")
-                        response_data = response.json()
+                            if response.status_code == 200:
+                                print("[NakuNode-Prompt] API call successful")
+                                response_data = response.json()
 
-                        # Parse response
-                        if 'choices' in response_data and len(response_data['choices']) > 0:
-                            result = response_data['choices'][0]['message']['content']
-                            print(f"[NakuNode-Prompt] API response: {result[:100]}...")
-                            return (result,)
-                        else:
-                            error_msg = f"API response format error: {response_data}"
+                                # Parse response
+                                if 'choices' in response_data and len(response_data['choices']) > 0:
+                                    result = response_data['choices'][0]['message']['content']
+                                    print(f"[NakuNode-Prompt] API response: {result[:100]}...")
+                                    return (result,)
+                                else:
+                                    error_msg = f"API response format error: {response_data}"
+                                    print(error_msg)
+                                    return (error_msg,)
+                            else:
+                                error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                                print(error_msg)
+                                # 如果是服务器错误（5xx），尝试重试
+                                if response.status_code >= 500 and attempt < max_retries - 1:
+                                    print(f"[NakuNode-Prompt] Server error, retrying in {retry_delay} seconds...")
+                                    time.sleep(retry_delay)
+                                    continue
+                                return (error_msg,)
+                        except requests.exceptions.ConnectionError as e:
+                            print(f"[NakuNode-Prompt] Connection error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                            if attempt < max_retries - 1:
+                                print(f"[NakuNode-Prompt] Retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                                retry_delay *= 2  # 指数退避
+                            else:
+                                error_msg = f"Connection failed after {max_retries} attempts: {str(e)}"
+                                print(error_msg)
+                                return (error_msg,)
+                        except requests.exceptions.Timeout:
+                            error_msg = "API request timeout"
                             print(error_msg)
                             return (error_msg,)
-                    else:
-                        error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
-                        print(error_msg)
-                        return (error_msg,)
+                        except Exception as e:
+                            error_msg = f"Unexpected error: {str(e)}"
+                            print(error_msg)
+                            return (error_msg,)
 
             except requests.exceptions.Timeout:
                 error_msg = "API request timeout"

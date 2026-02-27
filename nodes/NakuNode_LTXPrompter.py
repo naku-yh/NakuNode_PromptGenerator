@@ -11,11 +11,21 @@ import time
 from PIL import Image
 import io
 import base64
+import urllib3
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     import requests
 except ImportError:
     requests = None
+
+# Import API utils
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from api_utils import get_api_credentials, parse_api_string_for_node
 
 try:
     import jwt
@@ -32,26 +42,23 @@ class NakuNodeLTXPrompter:
 
     @classmethod
     def INPUT_TYPES(s):
-        # Create AI provider list - SiliconFlow and Custom (same as PromptEVO)
-        provider_list = ["SiliconFlow", "Custom"]
-
         inputs = {
             "required": {
                 "Mode_Select": (["Text_to_Video", "Image_to_Video"], {"default": "Text_to_Video"}),
                 "Video_Duration": ("INT", {"default": 5, "min": 1, "max": 20}),
                 "User_Description": ("STRING", {"multiline": True, "default": "A cute cat playing in the sunlight"}),
-                "api_provider": (provider_list, {"default": "SiliconFlow"}),
-                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             },
             "optional": {
-                "Input_Image": ("IMAGE", {}),  # Only used in Image_to_Video mode
-                # SiliconFlow API settings
-                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "Please enter SiliconFlow API Key"}),
-                "siliconflow_model": (["KIMI-K2", "Qwen3", "DeepSeekV3", "GLM", "KIMI"], {"default": "Qwen3"}),
-                # Custom API settings
-                "User_API_KEY": ("STRING", {"multiline": False, "default": "Please enter your API Key"}),
-                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
-                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
+                "Input_Image": ("IMAGE", {}),
+                "api_provider": (["SiliconFlow", "Custom"], {"default": "SiliconFlow"}),
+                "siliconflow_model": (["QWEN3VL", "GLM4.6V", "KIMI2.5"], {"default": "QWEN3VL"}),
+                "custom_model": (["GPT5.2", "Gemini Pro 3.1", "Gemini Pro 3", "Claude Opus 4.6", "Kimi 2.5"], {"default": "GPT5.2"}),
+                "api_string": ("STRING", {
+                    "multiline": False,
+                    "default": "",
+                    "placeholder": "连接 API Setting 节点"
+                }),
+                "random_seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -530,11 +537,9 @@ class NakuNodeLTXPrompter:
   "sync_notes": 轮胎冒烟与白烟视觉同步，过弯与音乐高潮同步
 }'''
 
-    def generate_ltx_prompt(self, Mode_Select, Video_Duration, User_Description, api_provider, random_seed,
-                            Input_Image=None,
-                            SiliconFlow_API_KEY="", siliconflow_model="Qwen3",
-                            User_API_KEY="", custom_url="https://api.siliconflow.cn/v1",
-                            custom_model="gpt_5.2", **kwargs):
+    def generate_ltx_prompt(self, Mode_Select, Video_Duration, User_Description, api_string, random_seed,
+                        Input_Image=None,
+                        siliconflow_model="QWEN3VL", custom_model="GPT5.2", api_provider="SiliconFlow", **kwargs):
         # Set random seed
         if random_seed == -1:
             random_seed = random.randint(0, 0xffffffffffffffff)
@@ -554,52 +559,55 @@ class NakuNodeLTXPrompter:
         # Build request
         full_prompt = f"User Description: {full_description}"
 
-        try:
-            # Select API settings based on provider
-            if api_provider == "SiliconFlow":
-                api_key = SiliconFlow_API_KEY
-            else:
-                api_key = User_API_KEY
+        # Parse API String and get credentials
+        parse_api_string_for_node(api_string, "NakuNode")
+        api_provider, api_key, api_url, sf_key, c_key, c_url = get_api_credentials(api_string, preferred_provider=api_provider)
 
-            # Check if API key is provided
-            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key"]:
+        try:
+            # Check if API key is provided (using parsed credentials)
+            if not api_key or api_key in ["Please enter SiliconFlow API Key", "Please enter your API Key", ""]:
                 print(f"[NakuNode LTXPrompter] API key not provided, returning user prompt directly")
                 return (full_description, full_description)
 
+            # Print API provider info
+            print(f"[NakuNode LTXPrompter] API Provider: {api_provider}")
+            print(f"[NakuNode LTXPrompter] SiliconFlow API Key: {'已设置' if sf_key else '未设置'}")
+            print(f"[NakuNode LTXPrompter] Custom API Key: {'已设置' if c_key else '未设置'}")
+            print(f"[NakuNode LTXPrompter] Custom API URL: {c_url}")
+
             print(f"\n[NakuNode LTXPrompter] {'='*60}")
-            print(f"[NakuNode LTXPrompter] Starting request - API Provider: {api_provider}")
+            print(f"[NakuNode LTXPrompter] Starting request...")
             print(f"[NakuNode LTXPrompter] {'='*60}")
             print(f"[NakuNode LTXPrompter] User Description: {full_description[:100]}...")
             print(f"[NakuNode LTXPrompter] Mode: {Mode_Select}")
             print(f"[NakuNode LTXPrompter] Video Duration: {Video_Duration} seconds")
 
-            # SiliconFlow model mapping (same as PromptEVO)
+            # SiliconFlow model mapping for image analysis
             model_mapping = {
-                "KIMI-K2": "Pro/moonshotai/Kimi-K2-Instruct-0905",
-                "Qwen3": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-                "DeepSeekV3": "Pro/deepseek-ai/DeepSeek-V3.2",
-                "GLM": "Pro/zai-org/GLM-4.7",
-                "KIMI": "Pro/moonshotai/Kimi-K2.5"
+                "QWEN3VL": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+                "GLM4.6V": "zai-org/GLM-4.6V",
+                "KIMI2.5": "Pro/moonshotai/Kimi-K2.5"
             }
 
             # Custom API model mapping
             custom_model_mapping = {
-                "gpt_5.2": "gpt-5.2",
-                "gemini_3.1": "gemini-3.1-pro-preview",
-                "Qwen_3.5": "qwen3.5-plus",
-                "Kimi_2.5": "kimi-k2.5"
+                "GPT5.2": "gpt-5.2",
+                "Gemini Pro 3.1": "gemini-3.1-pro-preview",
+                "Gemini Pro 3": "gemini-3-pro-preview",
+                "Claude Opus 4.6": "claude-opus-4-6",
+                "Kimi 2.5": "kimi-k2.5"
             }
 
             # Select model and print info based on API provider
             if api_provider == "Custom":
                 selected_model = custom_model_mapping.get(custom_model, "gpt-5.2")
-                api_url = custom_url.rstrip('/')
+                api_url = c_url.rstrip('/')
                 use_stream = False
                 print(f"[NakuNode LTXPrompter] Using Custom API")
-                print(f"[NakuNode LTXPrompter] Custom API URL: {custom_url}")
+                print(f"[NakuNode LTXPrompter] Custom API URL: {c_url}")
                 print(f"[NakuNode LTXPrompter] Using Custom API model: {selected_model}")
             else:
-                selected_model = model_mapping.get(siliconflow_model, "Pro/zai-org/GLM-4.7")
+                selected_model = model_mapping.get(siliconflow_model, "Qwen/Qwen3-VL-235B-A22B-Instruct")
                 api_url = "https://api.siliconflow.cn/v1/chat/completions"
                 use_stream = True
                 print(f"[NakuNode LTXPrompter] Using SiliconFlow API")
@@ -651,7 +659,7 @@ class NakuNodeLTXPrompter:
 
             if use_stream:
                 # SiliconFlow stream mode
-                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=180)
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=180, verify=False)
                 print(f"[NakuNode LTXPrompter] HTTP status code: {response.status_code}")
 
                 if response.status_code == 200:
@@ -676,26 +684,57 @@ class NakuNodeLTXPrompter:
                     print(error_msg)
                     return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
             else:
-                # Custom API non-stream mode
-                response = requests.post(api_url, headers=headers, json=payload, timeout=180)
-                print(f"[NakuNode LTXPrompter] HTTP status code: {response.status_code}")
+                # Custom API non-stream mode - 添加重试机制
+                max_retries = 3
+                retry_delay = 2  # 秒
+                response = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        print(f"[NakuNode LTXPrompter] Sending request (attempt {attempt + 1}/{max_retries})...")
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=180, verify=False)
+                        print(f"[NakuNode LTXPrompter] HTTP status code: {response.status_code}")
 
-                if response.status_code == 200:
-                    print(f"[NakuNode LTXPrompter] API call successful")
-                    response_data = response.json()
+                        if response.status_code == 200:
+                            print(f"[NakuNode LTXPrompter] API call successful")
+                            response_data = response.json()
 
-                    # Parse response
-                    if 'choices' in response_data and len(response_data['choices']) > 0:
-                        optimized_response = response_data['choices'][0]['message']['content']
-                        print(f"[NakuNode LTXPrompter] API response: {optimized_response[:100]}...")
-                    else:
-                        error_msg = f"API response format error: {response_data}"
+                            # Parse response
+                            if 'choices' in response_data and len(response_data['choices']) > 0:
+                                optimized_response = response_data['choices'][0]['message']['content']
+                                print(f"[NakuNode LTXPrompter] API response: {optimized_response[:100]}...")
+                                break
+                            else:
+                                error_msg = f"API response format error: {response_data}"
+                                print(error_msg)
+                                return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                        else:
+                            error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
+                            print(error_msg)
+                            # 如果是服务器错误（5xx），尝试重试
+                            if response.status_code >= 500 and attempt < max_retries - 1:
+                                print(f"[NakuNode LTXPrompter] Server error, retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                                continue
+                            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                    except requests.exceptions.ConnectionError as e:
+                        print(f"[NakuNode LTXPrompter] Connection error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                        if attempt < max_retries - 1:
+                            print(f"[NakuNode LTXPrompter] Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2  # 指数退避
+                        else:
+                            error_msg = f"Connection failed after {max_retries} attempts: {str(e)}"
+                            print(error_msg)
+                            return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                    except requests.exceptions.Timeout:
+                        error_msg = "API request timeout"
                         print(error_msg)
                         return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
-                else:
-                    error_msg = f"HTTP error: {response.status_code} - {response.text[:200]}"
-                    print(error_msg)
-                    return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
+                    except Exception as e:
+                        error_msg = f"Unexpected error: {str(e)}"
+                        print(error_msg)
+                        return (f"Error: {error_msg}. Original: {full_description}", f"Error: {error_msg}")
 
             print(f"[NakuNode LTXPrompter] Generated response received")
 

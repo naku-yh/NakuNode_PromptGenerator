@@ -10,7 +10,7 @@ def load_translation(lang='zh'):
     locales_dir = os.path.join(os.path.dirname(__file__), 'locales', lang)
     if not os.path.exists(locales_dir):
         return {}
-    
+
     translations = {}
     try:
         # 加载 nodeDefs.json
@@ -18,7 +18,7 @@ def load_translation(lang='zh'):
         if os.path.exists(nodeDefs_path):
             with open(nodeDefs_path, 'r', encoding='utf-8') as f:
                 translations['nodeDefs'] = json.load(f)
-        
+
         # 加载 main.json
         main_path = os.path.join(locales_dir, 'main.json')
         if os.path.exists(main_path):
@@ -26,7 +26,7 @@ def load_translation(lang='zh'):
                 translations['main'] = json.load(f)
     except Exception as e:
         print(f"[NakuNode-Prompter] Warning: Failed to load translation for {lang}: {e}")
-    
+
     return translations
 
 # 应用翻译到节点显示名称
@@ -34,7 +34,7 @@ def apply_translations(translations):
     """应用翻译到节点显示名称"""
     if 'nodeDefs' not in translations:
         return
-    
+
     for node_class, node_data in translations['nodeDefs'].items():
         if node_class in NODE_DISPLAY_NAME_MAPPINGS:
             if 'display_name' in node_data:
@@ -45,6 +45,16 @@ def apply_translations(translations):
 WAN22_NODE_CLASS_MAPPINGS = {}
 WAN22_NODE_DISPLAY_NAME_MAPPINGS = {}
 WAN22_AVAILABLE = False
+
+# API Setting Node - 新增 API 加密存储节点
+try:
+    from .nodes.NakuNode_APISetting import NODE_CLASS_MAPPINGS as API_SETTING_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as API_SETTING_NODE_DISPLAY_NAME_MAPPINGS
+    API_SETTING_AVAILABLE = True
+except ImportError as e:
+    print(f"[NakuNode-Prompter] Warning: Could not import API Setting nodes: {e}")
+    API_SETTING_NODE_CLASS_MAPPINGS = {}
+    API_SETTING_NODE_DISPLAY_NAME_MAPPINGS = {}
+    API_SETTING_AVAILABLE = False
 
 try:
     from .nodes.NAKUNode_Flux_QwenEdit_Prompt import NODE_CLASS_MAPPINGS as DESIGN_PROMPT_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as DESIGN_PROMPT_NODE_DISPLAY_NAME_MAPPINGS
@@ -90,15 +100,6 @@ except ImportError as e:
     STORYBOARD_NODE_CLASS_MAPPINGS = {}
     STORYBOARD_NODE_DISPLAY_NAME_MAPPINGS = {}
     STORYBOARD_AVAILABLE = False
-
-try:
-    from .nodes.NakuNode_TextEditor import NODE_CLASS_MAPPINGS as TEXT_EDITOR_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as TEXT_EDITOR_NODE_DISPLAY_NAME_MAPPINGS
-    TEXT_EDITOR_AVAILABLE = True
-except ImportError as e:
-    print(f"[NakuNode-Prompter] Warning: Could not import Text Editor nodes: {e}")
-    TEXT_EDITOR_NODE_CLASS_MAPPINGS = {}
-    TEXT_EDITOR_NODE_DISPLAY_NAME_MAPPINGS = {}
-    TEXT_EDITOR_AVAILABLE = False
 
 try:
     from .nodes.NakuNode_ImagePrompter import NODE_CLASS_MAPPINGS as IMAGE_PROMPTER_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as IMAGE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS
@@ -148,12 +149,12 @@ except ImportError as e:
 # Combine all node mappings
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(WAN22_NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(API_SETTING_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(DESIGN_PROMPT_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(IMG_OPTIMIZER_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(PROFESSIONAL_VIDEO_PROMPT_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(DUAL_IMAGE_SCRIPT_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(STORYBOARD_NODE_CLASS_MAPPINGS)
-NODE_CLASS_MAPPINGS.update(TEXT_EDITOR_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(IMAGE_PROMPTER_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(PROMPT_EVO_NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(LTX_PROMPTER_NODE_CLASS_MAPPINGS)
@@ -162,12 +163,12 @@ NODE_CLASS_MAPPINGS.update(VIDEO_PARAMS_NODE_CLASS_MAPPINGS)
 
 NODE_DISPLAY_NAME_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS.update(WAN22_NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(API_SETTING_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(DESIGN_PROMPT_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(IMG_OPTIMIZER_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(PROFESSIONAL_VIDEO_PROMPT_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(DUAL_IMAGE_SCRIPT_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(STORYBOARD_NODE_DISPLAY_NAME_MAPPINGS)
-NODE_DISPLAY_NAME_MAPPINGS.update(TEXT_EDITOR_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(IMAGE_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(PROMPT_EVO_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(LTX_PROMPTER_NODE_DISPLAY_NAME_MAPPINGS)
@@ -188,16 +189,16 @@ except Exception as e:
     print(f"[NakuNode-Prompter] Warning: Failed to apply Chinese translation: {e}")
 
 # Print version and capability information
-print("======================NakuNode Prompt Generator V1.0======================")
+print("——————NakuNode Prompt Generator V1.1 —————— A professional prompt generator for WAN / Qwen / Flux / LTX (with API Encryption)")
 
 # Print summary of available nodes
 print(f"[NakuNode-Prompter] Loaded {len(NODE_CLASS_MAPPINGS)} total nodes")
+if API_SETTING_AVAILABLE:
+    print(f"[NakuNode-Prompter] API Setting node available: {list(API_SETTING_NODE_CLASS_MAPPINGS.keys())}")
 if DESIGN_PROMPT_AVAILABLE:
     print(f"[NakuNode-Prompter] Design Prompt nodes available: {list(DESIGN_PROMPT_NODE_CLASS_MAPPINGS.keys())}")
 if STORYBOARD_AVAILABLE:
     print(f"[NakuNode-Prompter] Storyboard nodes available: {list(STORYBOARD_NODE_CLASS_MAPPINGS.keys())}")
-if TEXT_EDITOR_AVAILABLE:
-    print(f"[NakuNode-Prompter] Text Editor nodes available: {list(TEXT_EDITOR_NODE_CLASS_MAPPINGS.keys())}")
 if IMAGE_PROMPTER_AVAILABLE:
     print(f"[NakuNode-Prompter] Image Prompter nodes available: {list(IMAGE_PROMPTER_NODE_CLASS_MAPPINGS.keys())}")
 if PROMPT_EVO_AVAILABLE:

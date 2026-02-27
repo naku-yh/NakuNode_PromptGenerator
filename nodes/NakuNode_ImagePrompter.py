@@ -4,6 +4,10 @@ import json
 from PIL import Image
 import io
 import base64
+import urllib3
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 尝试导入必要的库，如果失败则在调用时抛出更友好的错误
 try:
@@ -11,19 +15,26 @@ try:
 except ImportError:
     requests = None
 
+# Import API utils
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from api_utils import get_api_credentials, parse_api_string_for_node
+
 # SiliconFlow 模型映射
 SILICONFLOW_MODELS = {
-    "QWENVL": "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "GLM": "zai-org/GLM-4.6V",
-    "KIMI": "Pro/moonshotai/Kimi-K2.5"
+    "QWEN3VL": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+    "GLM4.6V": "zai-org/GLM-4.6V",
+    "KIMI2.5": "Pro/moonshotai/Kimi-K2.5"
 }
 
 # Custom API 模型映射
 CUSTOM_MODELS = {
-    "gpt_5.2": "gpt-5.2",
-    "gemini_3.1": "gemini-3.1-pro-preview",
-    "Qwen_3.5": "qwen3.5-plus",
-    "Kimi_2.5": "kimi-k2.5"
+    "GPT5.2": "gpt-5.2",
+    "Gemini Pro 3.1": "gemini-3.1-pro-preview",
+    "Gemini Pro 3": "gemini-3-pro-preview",
+    "Claude Opus 4.6": "claude-opus-4-6",
+    "Kimi 2.5": "kimi-k2.5"
 }
 
 
@@ -34,22 +45,21 @@ class NakuNodeImagePrompter:
 
     @classmethod
     def INPUT_TYPES(s):
-        # 创建 AI 服务商列表
-        provider_list = ["SiliconFlow", "Custom"]
-
         inputs = {
             "required": {
                 "image": ("IMAGE", {}),
                 "text_request": ("STRING", {"multiline": True, "default": "请输入对图片的具体需求或补充说明"}),
-                "api_provider": (provider_list, {"default": "SiliconFlow"}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             },
             "optional": {
-                "SiliconFlow_API_KEY": ("STRING", {"multiline": False, "default": "请填写 SiliconFlow API Key"}),
-                "User_API_KEY": ("STRING", {"multiline": False, "default": "请填写您的 API Key"}),
-                "custom_url": ("STRING", {"multiline": False, "default": "https://api.siliconflow.cn/v1"}),
-                "custom_model": (["gpt_5.2", "gemini_3.1", "Qwen_3.5", "Kimi_2.5"], {"default": "gpt_5.2"}),
-                "siliconflow_model": (["QWENVL", "GLM", "KIMI"], {"default": "QWENVL"}),
+                "api_provider": (["SiliconFlow", "Custom"], {"default": "SiliconFlow"}),
+                "siliconflow_model": (["QWEN3VL", "GLM4.6V", "KIMI2.5"], {"default": "QWEN3VL"}),
+                "custom_model": (["GPT5.2", "Gemini Pro 3.1", "Gemini Pro 3", "Claude Opus 4.6", "Kimi 2.5"], {"default": "GPT5.2"}),
+                "api_string": ("STRING", {
+                    "multiline": False,
+                    "default": "",
+                    "placeholder": "连接 API Setting 节点"
+                }),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -106,7 +116,8 @@ class NakuNodeImagePrompter:
         img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
         return img_str
 
-    def generate_description(self, image, text_request, api_provider, seed, SiliconFlow_API_KEY=None, User_API_KEY=None, custom_url="https://api.siliconflow.cn/v1", custom_model="gpt_5.2", siliconflow_model="QWENVL", **kwargs):
+    def generate_description(self, image, text_request, api_string, seed,
+                        siliconflow_model="QWEN3VL", custom_model="GPT5.2", api_provider="SiliconFlow", **kwargs):
         # 设置随机种子
         if seed == -1:
             seed = random.randint(0, 0xffffffffffffffff)
@@ -117,14 +128,12 @@ class NakuNodeImagePrompter:
         if not image_base64:
             raise ValueError("无法处理输入的图片")
 
-        # 根据 AI 服务商选择 API Key
-        if api_provider == "SiliconFlow":
-            api_key = SiliconFlow_API_KEY
-        else:
-            api_key = User_API_KEY
+        # Parse API String and get credentials
+        parse_api_string_for_node(api_string, "NakuNode ImagePrompter")
+        api_provider, api_key, api_url, sf_key, c_key, c_url = get_api_credentials(api_string, preferred_provider=api_provider)
 
         # 检查 API Key 是否填写
-        if not api_key or api_key in ["请填写 SiliconFlow API Key", "请填写您的 API Key"]:
+        if not api_key or api_key in ["请填写 SiliconFlow API Key", "请填写您的 API Key", ""]:
             print(f"[NakuNode ImagePrompter] API Key 未填写，返回空描述")
             return ("",)
 
@@ -132,18 +141,22 @@ class NakuNodeImagePrompter:
         full_prompt = f"文字需求：{text_request}"
 
         try:
+            # Print API provider info
+            print(f"[NakuNode ImagePrompter] API Provider: {api_provider}")
+            print(f"[NakuNode ImagePrompter] SiliconFlow API Key: {'已设置' if sf_key else '未设置'}")
+            print(f"[NakuNode ImagePrompter] Custom API Key: {'已设置' if c_key else '未设置'}")
+            print(f"[NakuNode ImagePrompter] Custom API URL: {c_url}")
+
             print(f"\n[NakuNode ImagePrompter] ========================================")
             print(f"[NakuNode ImagePrompter] 开始生成图片描述")
-            print(f"[NakuNode ImagePrompter] AI 服务商：{api_provider}")
             print(f"[NakuNode ImagePrompter] 随机种子：{seed}")
             print(f"[NakuNode ImagePrompter] SiliconFlow 模型：{siliconflow_model}")
             print(f"[NakuNode ImagePrompter] Custom 模型：{custom_model}")
-            print(f"[NakuNode ImagePrompter] Custom URL: {custom_url}")
             print(f"[NakuNode ImagePrompter] 文字需求：{text_request[:100]}...")
             print(f"[NakuNode ImagePrompter] ========================================\n")
 
             # 调用 API
-            description_response = self.call_llm_api(api_provider, api_key, full_prompt, image_base64, siliconflow_model, custom_url, custom_model)
+            description_response = self.call_llm_api(api_provider, api_key, full_prompt, image_base64, siliconflow_model, c_url, custom_model)
             print(f"[NakuNode ImagePrompter] 生成完成：{description_response[:100]}...")
 
             # 返回 AI 生成的描述
@@ -153,7 +166,7 @@ class NakuNodeImagePrompter:
             # 发生错误时返回错误信息
             return (f"生成错误：{e}. 请检查 API 密钥和网络连接。",)
 
-    def call_llm_api(self, api_provider, api_key, prompt, image_base64, siliconflow_model="QWENVL", custom_url="https://api.siliconflow.cn/v1", custom_model="gpt_5.2"):
+    def call_llm_api(self, api_provider, api_key, prompt, image_base64, siliconflow_model="QWEN3VL", custom_url="https://api.siliconflow.cn/v1", custom_model="GPT5.2"):
         # 内置系统提示词 - 不可修改
         system_prompt = """你是一名图片生成专家，通过分析用户输入的图片（画风、风格、色彩搭配、氛围等等，如果有画面有文字需具体描述字体形态、字体颜色、字体大小、字体位置、字体效果等等）以及文字需求，最终以 [主体描述] + [细节修饰] + [艺术风格] + [画面构图] + [光照/色彩] + [画质参数] 这样的格式输出一段客观描述的自然语句，不要有废话。不要带有主观情绪的词句例如"兼具典雅传统与时尚活力""既增添神秘感与优雅气质""增添了时尚活力与异域奇幻感"等等。示例："一位身穿未来科技感银色战甲的女战士，站在火星红色荒漠上，背景是巨大的地球和星空，赛博朋克风格，电影级光影，超高清 8K，细节丰富，景深强烈"。需要避免以下问题：1.模糊不清的描述（如"好看的东西"）2.自相矛盾的元素（如"白天的满天繁星"）3.过于冗长或堆砌无关词汇。"""
 
@@ -179,7 +192,7 @@ class NakuNodeImagePrompter:
             print(f"[NakuNode ImagePrompter] 使用 Custom API: {selected_model}")
             print(f"[NakuNode ImagePrompter] Custom URL: {custom_url}")
         else:
-            selected_model = SILICONFLOW_MODELS.get(siliconflow_model, "Qwen/Qwen3-VL-30B-A3B-Instruct")
+            selected_model = SILICONFLOW_MODELS.get(siliconflow_model, "Qwen/Qwen3-VL-235B-A22B-Instruct")
             api_url = "https://api.siliconflow.cn/v1/chat/completions"
             use_stream = True
             print(f"[NakuNode ImagePrompter] 使用 SiliconFlow API: {selected_model}")
@@ -205,7 +218,7 @@ class NakuNodeImagePrompter:
 
             if use_stream:
                 # SiliconFlow 流式模式处理
-                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120)
+                response = requests.post(api_url, headers=headers, json=payload, stream=True, timeout=120, verify=False)
                 print(f"[NakuNode ImagePrompter] HTTP 状态码：{response.status_code}")
 
                 if response.status_code == 200:
@@ -228,7 +241,7 @@ class NakuNodeImagePrompter:
                     return f"Error: {response.status_code} - {response.text[:200]}"
             else:
                 # Custom API 非流式模式处理
-                response = requests.post(api_url, headers=headers, json=payload, timeout=120)
+                response = requests.post(api_url, headers=headers, json=payload, timeout=120, verify=False)
                 print(f"[NakuNode ImagePrompter] HTTP 状态码：{response.status_code}")
 
                 if response.status_code == 200:

@@ -202,7 +202,7 @@ class NakuNodeVideoParameters:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("视频参数",)
     FUNCTION = "generate_params"
-    CATEGORY = "NakuNode_Video_Prompt"
+    CATEGORY = "NakuNode_Design_Prompt"
 
     def generate_params(self, camera_movement, lighting, visual_effects):
         params = []
