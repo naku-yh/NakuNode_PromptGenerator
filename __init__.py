@@ -188,7 +188,7 @@ except Exception as e:
     print(f"[NakuNode-Prompter] Warning: Failed to apply Chinese translation: {e}")
 
 # Print version and capability information
-print("NakuNode Prompt Generator V1.16 Dev -- A professional prompt generator for WAN / Qwen / Flux / LTX")
+print("======================NakuNode Prompt Generator V1.0======================")
 
 # Print summary of available nodes
 print(f"[NakuNode-Prompter] Loaded {len(NODE_CLASS_MAPPINGS)} total nodes")
