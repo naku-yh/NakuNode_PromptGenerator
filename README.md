@@ -160,35 +160,6 @@ pip install -r requirements.txt
 
 ---
 
-## 📋 节点参数说明 | Node Parameters
-
-### 通用参数 | Common Parameters
-
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `api_provider` | API 提供商选择 | SiliconFlow |
-| `random_seed` | 随机种子（-1 为随机） | -1 |
-| `SiliconFlow_API_KEY` | SiliconFlow API 密钥 | - |
-| `User_API_KEY` | 自定义 API 密钥 | - |
-| `custom_url` | 自定义 API 地址 | - |
-
-### 模型选项 | Model Options
-
-#### SiliconFlow 模型
-- `KIMI-K2` - Moonshot AI Kimi K2
-- `Qwen3` - Qwen3-235B-A22B-Instruct
-- `DeepSeekV3` - DeepSeek V3.2
-- `GLM` - GLM-4.7
-- `KIMI` - Kimi K2.5
-
-#### Custom API 模型
-- `gpt_5.2` - GPT-5.2
-- `gemini_3.1` - Gemini 3.1 Pro
-- `Qwen_3.5` - Qwen3.5 Plus
-- `Kimi_2.5` - Kimi K2.5
-
----
-
 ## 🎯 应用场景 | Use Cases
 
 ### 📸 人像摄影提示词生成
